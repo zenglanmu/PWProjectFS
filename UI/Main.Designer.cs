@@ -30,11 +30,12 @@ namespace PWProjectFS.UI
         private void InitializeComponent()
         {
             this.btnLogin = new System.Windows.Forms.Button();
+            this.btnMount = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnLogin
             // 
-            this.btnLogin.Location = new System.Drawing.Point(160, 115);
+            this.btnLogin.Location = new System.Drawing.Point(140, 114);
             this.btnLogin.Name = "btnLogin";
             this.btnLogin.Size = new System.Drawing.Size(216, 49);
             this.btnLogin.TabIndex = 0;
@@ -42,11 +43,22 @@ namespace PWProjectFS.UI
             this.btnLogin.UseVisualStyleBackColor = true;
             this.btnLogin.Click += new System.EventHandler(this.btnLogin_Click);
             // 
+            // btnMount
+            // 
+            this.btnMount.Location = new System.Drawing.Point(140, 220);
+            this.btnMount.Name = "btnMount";
+            this.btnMount.Size = new System.Drawing.Size(216, 49);
+            this.btnMount.TabIndex = 1;
+            this.btnMount.Text = "挂载pw目录";
+            this.btnMount.UseVisualStyleBackColor = true;
+            this.btnMount.Click += new System.EventHandler(this.btnMount_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.btnMount);
             this.Controls.Add(this.btnLogin);
             this.Name = "Main";
             this.Text = "Form1";
@@ -57,5 +69,6 @@ namespace PWProjectFS.UI
         #endregion
 
         private System.Windows.Forms.Button btnLogin;
+        private System.Windows.Forms.Button btnMount;
     }
 }

@@ -738,6 +738,49 @@ namespace PWProjectFS.PWApiWrapper
 			AADMSPROJGF_ALL = 0x3FFF
 		}
 
+		public enum AADMSPROJITEM_Flag
+		{
+			AADMSPROJF_PROJECTID = 1,
+			AADMSPROJF_ENVID = 2,
+			AADMSPROJF_PARENTID = 4,
+			AADMSPROJF_STORAGEID = 8,
+			AADMSPROJF_MANAGERID = 16,
+			AADMSPROJF_TYPEID = 32,
+			AADMSPROJF_WORKFLOW = 64,
+			AADMSPROJF_NAME = 128,
+			AADMSPROJF_REQUIREDONCREATE = 136,
+			AADMSPROJF_DESC = 256,
+			AADMSPROJF_MGRTYPE = 1024,
+			AADMSPROJF_WSPACEPROFID = 2048,
+			AADMSPROJF_GUID = 4096,
+			AADMSPROJF_COMPONENT_CLASSID = 8192,
+			AADMSPROJF_PROJFLAGS = 16384,
+			AADMSPROJF_COMPONENT_INSTANCEID = 32768,
+			AADMSPROJF_ALL = 65535
+		}
+
+		public struct AADMSPROJITEM
+		{
+			public uint ulFlags;
+			public uint projFlagMask;
+			public int lComponentInstanceId;
+			public int lComponentClassId;
+			public IntPtr guidVault;
+			public int lWorkspaceProfileId;
+			public int lManagerType;
+			public string lptstrDesc;
+			public string lptstrName;
+			public int lWorkflowId;
+			public int lTypeId;
+			public int lManagerId;
+			public int lStorageId;
+			public int lParentId;
+			public int lEnvironmentId;
+			public int lProjectId;
+			public uint projFlags;
+
+		}
+
 		public struct DocCreateOutput
 		{
 			public uint Mask;
@@ -1804,6 +1847,12 @@ namespace PWProjectFS.PWApiWrapper
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern bool aaApi_CreateProject(ref int createdVaultID, int parentID, int storageID, int managerID, VaultType type, int workflowID, int workspaceProfileID, int copyAccessFromProject, string name, string description);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern bool aaApi_CreateProject2(IntPtr LPAADMSPROJITEM, int lAccFromProject);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern int aaApi_GetProjectIdByNamePath(string lpctstrPath);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern bool aaApi_GUIDCreateProject(out Guid createdVaultID, ref Guid parentGuid, int storageID, int managerID, VaultType type, int workflowID, int workspaceProfileID, int copyAccessFromProject, string name, string description);

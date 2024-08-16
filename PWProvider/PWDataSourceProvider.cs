@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using Microsoft.Win32;
 using System.IO;
 using PWProjectFS.Log;
@@ -12,6 +12,8 @@ namespace PWProjectFS.PWProvider
 {
     public class PWDataSourceProvider
     {
+		private object _lock =null;
+
 		private bool m_LoginStatus=false;
 		/* 表示登陆的状态 */
 		private string m_userName;
@@ -28,8 +30,9 @@ namespace PWProjectFS.PWProvider
 
 		public PWDataSourceProvider()
         {
-			this.m_projectHelper = new ProjectHelper();
-			this.m_documentHelper = new DocumentHelper();
+			this._lock = new object();
+			this.m_projectHelper = new ProjectHelper(this._lock);
+			this.m_documentHelper = new DocumentHelper(this._lock);
 		}
 
 		public void Initialize()
@@ -87,7 +90,7 @@ namespace PWProjectFS.PWProvider
 		/// <summary>
 		/// 激活数据源链接，每次调用pw函数时使用
 		/// </summary>
-		public void Activate()
+		public object Activate()
 		{
 			IntPtr intPtr = dmscli.aaApi_ActivateDatasourceByHandle(m_dsHandle);
 			if (intPtr == IntPtr.Zero)
@@ -98,6 +101,7 @@ namespace PWProjectFS.PWProvider
 			{
 				dmscli.aaApi_InvalidateConnectionCache();
 			}
+			return _lock;
 		}
 
 		public bool IsOpen()

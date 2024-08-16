@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Globalization;
 using Microsoft.Win32;
 
 namespace PWProjectFS.PWApiWrapper
@@ -149,6 +150,53 @@ namespace PWProjectFS.PWApiWrapper
 				{
 				}
 			}
+		}
+
+		public static bool TryGetTimeZoneMinutes(out int offsetMinutes)
+		{
+			bool result = false;
+			offsetMinutes = 0;
+			int num = dmscli.aaApi_GetActiveDatasourceNativeType();
+			if (num == 1 || num == 2)
+			{
+				IntPtr hDataBuffer = IntPtr.Zero;
+				switch (num)
+				{
+					case 1:
+						hDataBuffer = dmscli.aaApi_SqlSelectDataBuffer("SELECT CAST(EXTRACT(HOUR FROM(SYSTIMESTAMP - SYS_EXTRACT_UTC(SYSTIMESTAMP)) DAY TO SECOND) * 60 + EXTRACT(MINUTE FROM(SYSTIMESTAMP - SYS_EXTRACT_UTC(SYSTIMESTAMP)) DAY TO SECOND) as NUMBER(10,0)) as timezoneinfo FROM DUAL", IntPtr.Zero);
+						break;
+					case 2:
+						hDataBuffer = dmscli.aaApi_SqlSelectDataBuffer("select datediff(minute, GETUTCDATE(), GETDATE())", IntPtr.Zero);
+						break;
+				}
+				if (dmscli.aaApi_DmsDataBufferGetCount(hDataBuffer) > 0 && dmscli.aaApi_SqlSelectDataBufGetNumericValue(hDataBuffer, 0, 0, out offsetMinutes))
+				{
+					result = true;
+				}
+				dmscli.aaApi_DmsDataBufferFree(hDataBuffer);
+			}
+			return result;
+		}
+
+		public static int GetTimeZoneMinutes()
+		{
+			int offsetMinutes = 0;
+			TryGetTimeZoneMinutes(out offsetMinutes);
+			return offsetMinutes;
+		}
+
+		public static DateTime ToUtcTime(string pwTime, int timeZoneMinutes)
+		{
+			return new DateTime(DateTime.ParseExact(pwTime, "yyyy-MM-dd HH:mm:ss.FFFFF", DateTimeFormatInfo.InvariantInfo).AddMinutes(-timeZoneMinutes).Ticks, DateTimeKind.Utc);
+		}
+
+		public static Guid ParseStringToGuid(string guid)
+		{
+			if (!Guid.TryParse(guid, out var result))
+			{
+				throw new PWException($"{guid} not a valid_guid");
+			}
+			return result;
 		}
 	}
 }

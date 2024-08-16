@@ -1,21 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
+﻿using DokanNet;
+using DokanNet.Logging;
+using PWProjectFS.PWProvider;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.AccessControl;
-using DokanNet;
-using DokanNet.Logging;
 using static DokanNet.FormatProviders;
 using FileAccess = DokanNet.FileAccess;
 
 namespace PWProjectFS.DokanyFS
 {
-    internal class PWFSOperations
-    //internal class PWFSOperations: IDokanOperations
+    //internal class PWFSOperations
+    internal partial class PWFSOperations: IDokanOperations
     {
-        private int _base_pw_projectno;
+        private int base_pw_projectno;
+        private PWDataSourceProvider provider;
+
         private readonly ILogger _logger;
         private const FileAccess DataAccess = FileAccess.ReadData | FileAccess.WriteData | FileAccess.AppendData |
                                               FileAccess.Execute |
@@ -25,10 +23,12 @@ namespace PWProjectFS.DokanyFS
         private const FileAccess DataWriteAccess = FileAccess.WriteData | FileAccess.AppendData |
                                                    FileAccess.Delete |
                                                    FileAccess.GenericWrite;
-        public PWFSOperations(ILogger logger, int base_pw_projectno)
+
+        public PWFSOperations(ILogger logger, int base_pw_projectno, PWDataSourceProvider provider)
         {
             this._logger = logger;
-            this._base_pw_projectno = base_pw_projectno;
+            this.base_pw_projectno = base_pw_projectno;
+            this.provider = provider;
         }
 
         protected NtStatus Trace(string method, string fileName, IDokanFileInfo info, NtStatus result,
@@ -56,6 +56,55 @@ namespace PWProjectFS.DokanyFS
 #endif
 
             return result;
+        }
+
+        public static void Mount(int projectno, string mountPath, PWDataSourceProvider provider)
+        {
+            using (var dokanLogger = new ConsoleLogger("[ProjectWise] "))
+            using(var dokan = new Dokan(dokanLogger))
+            {
+                var fs = new PWFSOperations(dokanLogger, projectno, provider);
+                var dokanBuilder = new DokanInstanceBuilder(dokan)
+                        .ConfigureLogger(() => dokanLogger)
+                        .ConfigureOptions(options =>
+                        {
+                            options.Options = DokanOptions.DebugMode | DokanOptions.EnableNotificationAPI;
+                            options.MountPoint = mountPath;
+                        });
+                using (var dokanInstance = dokanBuilder.Build(fs))
+                {
+                    var task = dokanInstance.WaitForFileSystemClosedAsync(uint.MaxValue);
+                    task.Wait();
+                }
+            }
+        }
+
+
+        private string _base_pw_path = null;
+        /// <summary>
+        /// 获取完整的路径，拼接上父路径
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        private string GetPath(string filename)
+        {
+            if (filename == "\\")
+            {
+                // base pw dir
+                return this._base_pw_path;
+            }
+            if (this._base_pw_path == null)
+            {
+                if (this.base_pw_projectno == 0)
+                {
+                    this._base_pw_path = "";
+                }
+                else
+                {
+                    this._base_pw_path = this.provider.ProjectHelper.GetNamePathByProjectId(this.base_pw_projectno);
+                }
+            }
+            return this._base_pw_path + "\\" + filename;
         }
     }
 }
