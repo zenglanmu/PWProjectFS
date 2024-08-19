@@ -31,11 +31,19 @@ namespace PWProjectFS.PWProvider
             this.m_cache_expireSeconds = new Dictionary<string, int>();
         }
 
-        public object Get(string cache_key)
+
+        /// <summary>
+        /// 如果cache存在返回true，否则false，value设置为null
+        /// </summary>
+        /// <param name="cache_key"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool Get(string cache_key, out object value)
         {
             if (!this.m_cacheItems.ContainsKey(cache_key) || !this.m_cacheTimes.ContainsKey(cache_key))
             {
-                return null;
+                value = null;
+                return false;
             }
             // 判断是否过期
             var cached_at = this.m_cacheTimes[cache_key];
@@ -49,11 +57,13 @@ namespace PWProjectFS.PWProvider
             {
                 this.m_cacheItems.Remove(cache_key);
                 this.m_cacheTimes.Remove(cache_key);
-                return null;
+                value = null;
+                return false;
             }
             else
             {
-                return this.m_cacheItems[cache_key];
+                value=  this.m_cacheItems[cache_key];
+                return true;
             }
         }
 
@@ -82,10 +92,10 @@ namespace PWProjectFS.PWProvider
         /// <returns></returns>
         public T TryGet<T>(string cache_key, Func<T> get_value_func, int? expire_seconds = null)
         {
-            var cached = this.Get(cache_key);
-            if (cached != null)
+            var cached = this.Get(cache_key, out object value);
+            if (cached)
             {
-                return (T)cached;
+                return (T)value;
             }
             else
             {

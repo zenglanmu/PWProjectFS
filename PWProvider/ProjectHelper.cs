@@ -251,6 +251,7 @@ namespace PWProjectFS.PWProvider
         private int _GetProjectIdByNamePath(string lpctstrPath)
         {
             var projectno = dmscli.aaApi_GetProjectIdByNamePath(lpctstrPath);
+            // 如果lpctstrPath不存在，抛错误码50000
             if (projectno == -1)
             {
                 throw PWException.GetPWLastException();
@@ -263,8 +264,37 @@ namespace PWProjectFS.PWProvider
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._GetProjectIdByNamePath(lpctstrPath);
+                var cache_key = $"GetProjectIdByNamePath:{lpctstrPath}";
+                Func<int> get_value_func = () =>
+                {
+                    try
+                    {
+                        return this._GetProjectIdByNamePath(lpctstrPath);
+                    }
+                    catch(PWException e) 
+                    { 
+                        if(e.PWErrorId== 50000)
+                        {
+                            // 用-1来表示目录不存在情况
+                            // 和原来aaApi_GetProjectIdByNamePath的返回值有所区分
+                            return -1;
+                        }
+                        else
+                        {
+                            throw e;
+                        }
+                    }
+                    
+                };
+                return this.m_cache.TryGet(cache_key, get_value_func);
             }
+        }
+
+        public bool IsNamePathExists(string lpctstrPath)
+        {
+            var projectId = this.GetProjectIdByNamePath(lpctstrPath);
+            // 0 表示目录不存在？
+            return projectId != -1;
         }
 
         private string _GetNamePathByProjectId(int projectId)
@@ -287,7 +317,12 @@ namespace PWProjectFS.PWProvider
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._GetNamePathByProjectId(projectId);
+                var cache_key = $"GetNamePathByProjectId:{projectId}";
+                Func<string> get_value_func = () =>
+                {
+                    return this._GetNamePathByProjectId(projectId);
+                };
+                return this.m_cache.TryGet(cache_key, get_value_func);
             }
         }
     }

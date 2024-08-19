@@ -35,7 +35,7 @@ namespace PWProjectFS.DokanyFS
                 if (info.IsDirectory)
                 {
                     if (mode == FileMode.Open)
-                        return this.OpenDirectory(fileName, info);
+                        return this.OpenDirectory(filePath, info);
                     if (mode == FileMode.CreateNew)
                         return this.CreateDirectory(fileName, info);
 

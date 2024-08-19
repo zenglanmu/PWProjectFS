@@ -41,14 +41,25 @@ namespace PWProjectFS.DokanyFS
             fileSystemName = string.Empty;
             maximumComponentLength = 128;
             features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.CaseSensitiveSearch |
-                       FileSystemFeatures.PersistentAcls | FileSystemFeatures.SupportsRemoteStorage |
-                       FileSystemFeatures.UnicodeOnDisk;
+                       FileSystemFeatures.PersistentAcls |FileSystemFeatures.UnicodeOnDisk;
             return DokanResult.Success;
         }
 
-        private NtStatus OpenDirectory(string fileName, IDokanFileInfo info)
+        private NtStatus OpenDirectory(string filePath, IDokanFileInfo info)
         {
-            return NtStatus.Success;
+            if (filePath == null)
+            {
+                return NtStatus.Success;
+            }
+            if (this.provider.ProjectHelper.IsNamePathExists(filePath))
+            {
+                return NtStatus.Success;
+            }
+            else
+            {
+                return DokanResult.PathNotFound;
+            }
+            
         }
 
         private NtStatus CreateDirectory(string fileName, IDokanFileInfo info)

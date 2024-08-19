@@ -80,7 +80,6 @@ namespace PWProjectFS.DokanyFS
         }
 
 
-        private string _base_pw_path = null;
         /// <summary>
         /// 获取完整的路径，拼接上父路径
         /// </summary>
@@ -88,23 +87,26 @@ namespace PWProjectFS.DokanyFS
         /// <returns></returns>
         private string GetPath(string filename)
         {
-            if (filename == "\\")
+            var _base_pw_path = "";
+            if (this.base_pw_projectno == 0)
+            {
+                _base_pw_path = "";
+            }
+            else
+            {
+                _base_pw_path = this.provider.ProjectHelper.GetNamePathByProjectId(this.base_pw_projectno);
+            }
+       
+            if (filename == "\\" || string.IsNullOrWhiteSpace(filename))
             {
                 // base pw dir
-                return this._base_pw_path;
+                return _base_pw_path;
             }
-            if (this._base_pw_path == null)
+            else
             {
-                if (this.base_pw_projectno == 0)
-                {
-                    this._base_pw_path = "";
-                }
-                else
-                {
-                    this._base_pw_path = this.provider.ProjectHelper.GetNamePathByProjectId(this.base_pw_projectno);
-                }
+                return _base_pw_path + "\\" + filename;
             }
-            return this._base_pw_path + "\\" + filename;
+            
         }
     }
 }

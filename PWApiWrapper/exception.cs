@@ -9,6 +9,16 @@ namespace PWProjectFS.PWApiWrapper
     public class PWException : Exception
     {
         public PWException(string message) : base(message) { }
+        public PWException(int errorId, string errorDetail):
+            this(string.Format("pw错误信息:{0},错误码:{1}", errorDetail, errorId))
+        {
+            this.PWErrorDetail = errorDetail;
+            this.PWErrorId = errorId;
+            
+        }
+
+        public string PWErrorDetail {  get; private set; }
+        public int PWErrorId { get; private set; }
 
         public override string Message
         {
@@ -20,9 +30,9 @@ namespace PWProjectFS.PWApiWrapper
 
         public static PWException GetPWLastException()
         {
-            var errorId = dmsgen.aaApi_GetLastErrorId();
-            var error = dmsgen.aaApi_GetLastErrorDetail();
-            return new PWException(string.Format("pw错误信息:{0},错误码:{1}", error, errorId));
+            int errorId = dmsgen.aaApi_GetLastErrorId();
+            string error = dmsgen.aaApi_GetLastErrorDetail();
+            return new PWException(errorId, error);
         }
     }
 }
