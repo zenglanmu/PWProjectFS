@@ -30,10 +30,12 @@ namespace PWProjectFS.PWProvider
     public class ProjectHelper
     {
         private object _lock = null;
-
-        public ProjectHelper(object _lock)
+        private PWResourceCache m_cache;
+        /* 缓存资源 */
+        public ProjectHelper(object _lock, PWResourceCache cache)
         {
             this._lock = _lock;
+            this.m_cache = cache;
         }
 
         /// <summary>
@@ -61,7 +63,13 @@ namespace PWProjectFS.PWProvider
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._GetStorageInfo(projectno);
+                var cache_key = "StorageInfo";
+                Func<PWStorageInfo> get_value_func = () =>
+                {
+                    return this._GetStorageInfo(projectno);
+                };
+                // 容量大小的缓存可以保存时间长点
+                return this.m_cache.TryGet(cache_key, get_value_func, 60 * 10);
             }
         }
 

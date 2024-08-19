@@ -14,7 +14,7 @@ namespace PWProjectFS.PWProvider
     {
 		private object _lock =null;
 
-		private bool m_LoginStatus=false;
+		//private bool m_LoginStatus=false;
 		/* 表示登陆的状态 */
 		private string m_userName;
 		/* 登陆用户名 */
@@ -22,17 +22,24 @@ namespace PWProjectFS.PWProvider
 		/* 登陆的密码 */
 		private IntPtr m_dsHandle= IntPtr.Zero;
 		/* 登陆后的数据库链接 */
+		private PWResourceCache m_cache;
+		/* 缓存资源 */
 		private readonly ProjectHelper m_projectHelper;
 		public ProjectHelper ProjectHelper => m_projectHelper;
 
 		private readonly DocumentHelper m_documentHelper;
 		public DocumentHelper DocumentHelper => m_documentHelper;
 
+		
+
 		public PWDataSourceProvider()
         {
 			this._lock = new object();
-			this.m_projectHelper = new ProjectHelper(this._lock);
-			this.m_documentHelper = new DocumentHelper(this._lock);
+			// 默认60秒过期
+			this.m_cache = new PWResourceCache(60);
+			this.m_projectHelper = new ProjectHelper(this._lock, this.m_cache);
+			this.m_documentHelper = new DocumentHelper(this._lock, this.m_cache);
+
 		}
 
 		public void Initialize()
@@ -62,7 +69,7 @@ namespace PWProjectFS.PWProvider
 			lRetVal = dmawin.aaApi_LoginDlgExt(IntPtr.Zero, "ProjectWise登录", 32u, ds, (UInt32)ds.Capacity, username, password, schema);
 			if(lRetVal == 1)
             {
-				this.m_LoginStatus = true;
+				//this.m_LoginStatus = true;
 				this.m_dsHandle = dmscli.aaApi_GetActiveDatasource();
 				int curloginId = dmscli.aaApi_GetCurrentUserId();
 				dmscli.aaApi_SelectUser(curloginId);

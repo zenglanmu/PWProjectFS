@@ -71,6 +71,7 @@
     <Compile Include="PWApiWrapper\GeoSymbology.cs" />
     <Compile Include="PWApiWrapper\SymbologyIcon.cs" />
     <Compile Include="PWApiWrapper\Util.cs" />
+    <Compile Include="PWProvider\Cache.cs" />
     <Compile Include="PWProvider\DocumentHelper.cs" />
     <Compile Include="PWProvider\ProjectHelper.cs" />
     <Compile Include="PWProvider\PWDataSourceProvider.cs" />

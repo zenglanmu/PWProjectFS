@@ -28,10 +28,11 @@ namespace PWProjectFS.PWProvider
     public class DocumentHelper
     {
         private object _lock = null;
-
-        public DocumentHelper(object _lock)
+        private PWResourceCache m_cache;
+        public DocumentHelper(object _lock, PWResourceCache cache)
         {
             this._lock = _lock;
+            this.m_cache = cache;
         }
 
         /// <summary>
