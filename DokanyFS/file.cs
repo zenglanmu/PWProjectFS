@@ -39,17 +39,13 @@ namespace PWProjectFS.DokanyFS
                     if (mode == FileMode.CreateNew)
                         return this.CreateDirectory(fileName, info);
 
-                    return NtStatus.NotImplemented;
+                    return DokanResult.NotImplemented;
                 }
             }
                 
             return DokanResult.Success;
         }
 
-        public NtStatus DeleteDirectory(string filename, IDokanFileInfo info)
-        {
-            return DokanResult.Error;
-        }
 
         public NtStatus DeleteFile(string filename, IDokanFileInfo info)
         {
@@ -79,18 +75,41 @@ namespace PWProjectFS.DokanyFS
             string filename,
             out FileInformation fileinfo,
             IDokanFileInfo info)
-        {
-            fileinfo = new FileInformation
-            {
-                Attributes = FileAttributes.Directory,
-                CreationTime = DateTime.Now,
-                LastAccessTime = DateTime.Now,
-                LastWriteTime = DateTime.Now,
-                Length = 0,
-                FileName = "test"
-            };
+        {            
+            // 给个默认值
+            fileinfo = new FileInformation { FileName = filename };
+            fileinfo.Attributes = FileAttributes.Directory;
+            fileinfo.LastAccessTime = DateTime.Now;
+            fileinfo.LastWriteTime = null;
+            fileinfo.CreationTime = null;
 
-            return DokanResult.Success;
+            if (filename == "\\" || filename.EndsWith("\\uwstconfig"))
+            {
+                return DokanResult.Success;
+            }
+            this.provider.Activate();
+            var fPath = this.GetPath(filename);
+            var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(fPath);
+            if (pw_doc != null)
+            {
+                fileinfo = pw_doc.toFileInformation();
+                return DokanResult.Success;
+            }
+            else
+            {
+                var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(fPath);
+                if (pw_proj == null)
+                {
+                    return DokanResult.FileNotFound;
+                }
+                else
+                {
+                    fileinfo = pw_proj.toFileInformation();
+                    return DokanResult.Success;
+                }
+                
+            }
+
         }
 
         public NtStatus LockFile(
@@ -179,13 +198,13 @@ namespace PWProjectFS.DokanyFS
             IDokanFileInfo info)
         {
             security = null;
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections,
             IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus EnumerateNamedStreams(string fileName, IntPtr enumContext, out string streamName,
@@ -216,6 +235,14 @@ namespace PWProjectFS.DokanyFS
             IDokanFileInfo info)
         {
             files = new List<FileInformation>();
+            // 一些特殊情况的处理
+            if(fileName=="\\")
+            {
+                if(searchPattern == "__drive_fs_keepalive" || searchPattern== "uwstconfig")
+                {
+                    return DokanResult.Success;
+                }                
+            }
             if (searchPattern == "*")
             {
                 // 列目录下所有内容的操作
@@ -224,29 +251,13 @@ namespace PWProjectFS.DokanyFS
                 var projects = this.provider.ProjectHelper.ReadByParent(projectId);
                 foreach(var proj in projects)
                 {
-                    var file = new FileInformation
-                    {
-                        Attributes = FileAttributes.Directory,
-                        CreationTime = proj.create_time,
-                        LastAccessTime = proj.update_time,
-                        LastWriteTime = proj.update_time,
-                        Length = 0,
-                        FileName = proj.label
-                    };
+                    var file = proj.toFileInformation();
                     files.Add(file);
                 }
                 var docs = this.provider.DocumentHelper.ReadByParent(projectId);
                 foreach(var doc in docs)
                 {
-                    var file = new FileInformation
-                    {
-                        Attributes = FileAttributes.Archive,
-                        CreationTime = doc.create_time,
-                        LastAccessTime = doc.update_time,
-                        LastWriteTime = doc.file_update_time,
-                        Length = doc.filesize,
-                        FileName = doc.filename
-                    };
+                    var file = doc.toFileInformation();
                     files.Add(file);
                 }
             }

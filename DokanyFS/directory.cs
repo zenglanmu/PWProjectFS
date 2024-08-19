@@ -57,14 +57,54 @@ namespace PWProjectFS.DokanyFS
             }
             else
             {
-                return DokanResult.PathNotFound;
+                // 必须返回NotADirectory,要不然新建文件夹的时候会先调用这个判断状态
+                return DokanResult.NotADirectory;
             }
             
         }
 
         private NtStatus CreateDirectory(string fileName, IDokanFileInfo info)
         {
-            throw new UnauthorizedAccessException();
+            this.provider.Activate();
+            if (fileName == null)
+            {
+                return NtStatus.Success;
+            }
+            var filePath = GetPath(fileName);
+            if (this.provider.ProjectHelper.IsNamePathExists(filePath))
+            {
+                return DokanResult.AlreadyExists;
+            }
+            var projectId = this.provider.ProjectHelper.CreateByFullPath(filePath);
+            if (projectId == -1)
+            {
+                // 父目录不存在
+                return DokanResult.PathNotFound;
+            }
+            else
+            {
+                return DokanResult.Success;
+            }            
+        }
+
+        public NtStatus DeleteDirectory(string fileName, IDokanFileInfo info)
+        {
+            this.provider.Activate();
+            var filePath = this.GetPath(fileName);
+            var projectId = this.provider.ProjectHelper.GetProjectIdByNamePath(filePath);
+            if (projectId == -1)
+            {
+                return DokanResult.PathNotFound;
+            }
+            var projects = this.provider.ProjectHelper.ReadByParent(projectId);
+            var docs = this.provider.DocumentHelper.ReadByParent(projectId);
+            if(projects.Count>0 || docs.Count > 0)
+            {
+                return DokanResult.DirectoryNotEmpty;
+            }
+            // if dir is not empty it can't be deleted
+            this.provider.ProjectHelper.Delete(projectId);
+            return DokanResult.Success;
         }
     }
 }

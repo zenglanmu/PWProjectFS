@@ -132,6 +132,53 @@ namespace PWProjectFS.PWApiWrapper
 			MimeType = 56
 		}
 
+		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+		public struct AADOCSELECT_ITEM
+        {
+			public uint ulFlags; // ULONG is typically 32-bit unsigned integer in C#
+			public int lEnvironmentId; // LONG is typically a 32-bit signed integer in C#
+			public int lProjectId;
+			public int lDocumentId;
+			public int lSetId;
+			public int lSetType;
+
+			[MarshalAs(UnmanagedType.LPWStr)]
+			public string lpctstrFileName; // LPCWSTR is a pointer to a wide string (UTF-16)
+
+			[MarshalAs(UnmanagedType.LPWStr)]
+			public string lpctstrName;
+
+			[MarshalAs(UnmanagedType.LPWStr)]
+			public string lpctstrDescription;
+
+			[MarshalAs(UnmanagedType.LPWStr)]
+			public string lpctstrVersion;
+
+			public int lVersionSeq;
+			public int lOriginal;
+			public int lCreatorId;
+			public int lUpdaterId;
+			public int lLastUserId;
+
+			[MarshalAs(UnmanagedType.LPWStr)]
+			public string lpctstrStatus;
+
+			public int lFileType;
+			public int lItemType;
+			public int lStorageId;
+			public int lWorkflowId;
+			public int lStateId;
+			public int lApplicationId;
+			public int lDepartmentId;
+			public int lManagerId;
+			public int lItemFlags;
+			public int lManagerType;
+
+			public IntPtr lpProject; // Assuming LPAADMSPROJITEM is a pointer type
+
+			public int lFileUpdator;
+		}
+
 		public enum ProjectProperty
 		{
 			NONE = -1,
@@ -759,26 +806,63 @@ namespace PWProjectFS.PWApiWrapper
 			AADMSPROJF_ALL = 65535
 		}
 
+		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 		public struct AADMSPROJITEM
 		{
 			public uint ulFlags;
-			public uint projFlagMask;
-			public int lComponentInstanceId;
-			public int lComponentClassId;
-			public IntPtr guidVault;
-			public int lWorkspaceProfileId;
-			public int lManagerType;
-			public string lptstrDesc;
-			public string lptstrName;
-			public int lWorkflowId;
-			public int lTypeId;
-			public int lManagerId;
-			public int lStorageId;
-			public int lParentId;
-			public int lEnvironmentId;
+
 			public int lProjectId;
+
+			public int lEnvironmentId;
+
+			public int lParentId;
+
+			public int lStorageId;
+
+			public int lManagerId;
+
+			public int lTypeId;
+
+			public int lWorkflowId;
+
+			public string lptstrName;
+
+			public string lptstrDesc;
+
+			public int lManagerType;
+
+			public int lWorkspaceProfileId;
+
+			public IntPtr guidVault;
+
+			public int lComponentClassId;
+
+			public int lComponentInstanceId;
+
+			public uint projFlagMask;
+
 			public uint projFlags;
 
+			public AADMSPROJITEM(string projname, string projdesc)
+			{
+				this.ulFlags = 0;
+				this.lProjectId = 0;
+				this.lEnvironmentId = 0;
+				this.lParentId = 0;
+				this.lStorageId = 0;
+				this.lManagerId = 0;
+				this.lTypeId = 0;
+				this.lWorkflowId = 0;
+				this.lptstrName = projname;
+				this.lptstrDesc = projdesc;
+				this.lManagerType = 0;
+				this.lWorkspaceProfileId = 0;
+				this.guidVault = IntPtr.Zero;
+				this.lComponentClassId = 0;
+				this.lComponentInstanceId = 0;
+				this.projFlagMask = 0;
+				this.projFlags = 0;
+			}
 		}
 
 		public struct DocCreateOutput
@@ -2194,6 +2278,12 @@ namespace PWProjectFS.PWApiWrapper
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern int aaApi_SelectDocumentsByProjectId(int lProjectId);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern int aaApi_SelectDocuments(IntPtr lpSelectInfo, IntPtr fpCallback, int lUserData);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern int aaApi_SelectDocuments2(IntPtr lpSelectInfo, IntPtr fpCallback, int lUserData);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern int aaApi_GUIDSelectDocumentsByProjectId(ref Guid projectGuid);

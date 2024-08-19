@@ -1,7 +1,9 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using DokanNet;
 using PWProjectFS.PWApiWrapper;
 
 namespace PWProjectFS.PWProvider
@@ -24,6 +26,20 @@ namespace PWProjectFS.PWProvider
         public bool locked { get; set; }
         public bool locked_by_me { get; set; }
         public bool is_latest { get; set; }
+
+        public FileInformation toFileInformation()
+        {
+            var file = new FileInformation
+            {
+                Attributes = FileAttributes.Archive,
+                CreationTime = this.create_time,
+                LastAccessTime = this.update_time,
+                LastWriteTime = this.file_update_time,
+                Length = this.filesize,
+                FileName = this.filename
+            };
+            return file;
+        }
     }
     public class DocumentHelper
     {
@@ -146,6 +162,71 @@ namespace PWProjectFS.PWProvider
             lock (this._lock)
             {
                 this._Delete(documentId);
+            }
+        }
+
+        private PWDocument _GetDocumentByNamePath(string docFullPath)
+        {
+            string lpctstrPath = docFullPath.Substring(0, docFullPath.LastIndexOf("\\"));
+            string filename = docFullPath.Substring(docFullPath.LastIndexOf("\\") + 1);
+
+            var projectno = dmscli.aaApi_GetProjectIdByNamePath(lpctstrPath);
+            // 如果lpctstrPath不存在，抛错误码50000
+            if (projectno == -1)
+            {
+                throw PWException.GetPWLastException();
+            }
+            //int docCounts = dmscli.aaApi_SelectDocumentsByProjectId(projectno);
+            //return projectno;
+            var searchItem = new dmscli.AADOCSELECT_ITEM();
+            searchItem.ulFlags = 0;
+            searchItem.lProjectId = projectno;
+            searchItem.lpctstrFileName = filename;
+            var lpSelectInfo = Util.StructureToPtr(searchItem);
+            var docCounts = dmscli.aaApi_SelectDocuments2(lpSelectInfo, IntPtr.Zero, 0);
+            Util.FreeHGlobal(ref lpSelectInfo);
+            if (docCounts == 0)
+            {
+                return null;
+            }
+            int timeZoneMinutes = Util.GetTimeZoneMinutes();
+            var doc = this.PopulateDocumentFromBuffer(0, timeZoneMinutes);
+            return doc;
+        }
+
+        public PWDocument GetDocumentByNamePath(string docFullPath)
+        {
+            if (docFullPath.EndsWith("\\"))
+            {
+                // 明显传的是目录的情况
+                return null;
+            }
+            // use lock to ensure thread safe calling pw apis
+            lock (this._lock)
+            {
+                var cache_key = $"GetDocumentByNamePath:{docFullPath}";
+                Func<PWDocument> get_value_func = () =>
+                {
+                    try
+                    {
+                        return this._GetDocumentByNamePath(docFullPath);
+                    }
+                    catch (PWException e)
+                    {
+                        if (e.PWErrorId == 50000)
+                        {
+                            // 用-1来表示目录不存在情况
+                            // 和原来aaApi_GetProjectIdByNamePath的返回值有所区分
+                            return null;
+                        }
+                        else
+                        {
+                            throw e;
+                        }
+                    }
+
+                };
+                return this.m_cache.TryGet(cache_key, get_value_func);
             }
         }
     }

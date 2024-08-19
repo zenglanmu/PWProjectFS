@@ -99,15 +99,18 @@ namespace PWProjectFS.PWProvider
 		/// </summary>
 		public object Activate()
 		{
-			IntPtr intPtr = dmscli.aaApi_ActivateDatasourceByHandle(m_dsHandle);
-			if (intPtr == IntPtr.Zero)
-			{
-				ErrorLog.WriteErrorLog("Failed to activate PW DS by handle.");
-			}
-			else
-			{
-				dmscli.aaApi_InvalidateConnectionCache();
-			}
+            lock (_lock)
+            {
+				IntPtr intPtr = dmscli.aaApi_ActivateDatasourceByHandle(m_dsHandle);
+				if (intPtr == IntPtr.Zero)
+				{
+					ErrorLog.WriteErrorLog("Failed to activate PW DS by handle.");
+				}
+				else
+				{
+					dmscli.aaApi_InvalidateConnectionCache();
+				}
+			}			
 			return _lock;
 		}
 

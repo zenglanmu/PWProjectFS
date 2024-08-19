@@ -1,8 +1,10 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DokanNet;
 using PWProjectFS.PWApiWrapper;
 using PWProjectFS.PWApiWrapper.CommonDlg;
 
@@ -25,6 +27,20 @@ namespace PWProjectFS.PWProvider
         public string label { get; set; } // 根据用户的设置，是显示name还是description
         public DateTime create_time { get; set; }
         public DateTime update_time { get; set; }
+
+        public FileInformation toFileInformation()
+        {
+            var dir = new FileInformation
+            {
+                Attributes = FileAttributes.Directory,
+                CreationTime = this.create_time,
+                LastAccessTime = this.update_time,
+                LastWriteTime = this.update_time,
+                Length = 0,
+                FileName = this.label
+            };
+            return dir;
+        }
     }
 
     public class ProjectHelper
@@ -197,11 +213,11 @@ namespace PWProjectFS.PWProvider
             projItem.lTypeId = 0;
             //使用父目录的存储区设置
             projItem.lStorageId = lStorageId;
-            projItem.ulFlags = (UInt32)(dmscli.AADMSPROJITEM_Flag.AADMSPROJF_PARENTID | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_NAME
+            projItem.ulFlags = (UInt32)(UInt32)(dmscli.AADMSPROJITEM_Flag.AADMSPROJF_PARENTID | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_NAME
                     | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_DESC | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_STORAGEID |
                     dmscli.AADMSPROJITEM_Flag.AADMSPROJF_MANAGERID | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_TYPEID |
                     dmscli.AADMSPROJITEM_Flag.AADMSPROJF_MGRTYPE);
-            IntPtr pd = Util.StructureToPtr<dmscli.AADMSPROJITEM>(projItem);
+            IntPtr pd = Util.StructureToPtr(projItem);
 
             var ret = dmscli.aaApi_CreateProject2(pd, 0);
             
@@ -220,6 +236,30 @@ namespace PWProjectFS.PWProvider
             lock (this._lock)
             {
                 return this._Create(parentProjectId, name, description);
+            }
+        }
+
+        public int CreateByFullPath(string projFullPath)
+        {
+            var parentPath = projFullPath.Substring(0, projFullPath.LastIndexOf("\\"));            
+            var parentProjectId = this.GetProjectIdByNamePath(parentPath);
+            if (parentProjectId == -1)
+            {
+                // 父目录不存在，好让上层调用方知道
+                return -1;
+            }
+            // use lock to ensure thread safe calling pw apis
+            lock (this._lock)
+            {                
+                // 拼接上pw的父路径，获取完整的pw父路径
+                var basename = projFullPath.Substring(projFullPath.LastIndexOf("\\") + 1);
+                var projectno = this._Create(parentProjectId, basename, basename);
+
+                var cache_key = $"GetProjectIdByNamePath:{projFullPath}";
+                // 更新缓存，防止创建完后调用获取api不存在
+                // 因为创建前很可能调用了GetProjectIdByNamePath，设置了不存在的缓存
+                this.m_cache.Set(cache_key, projectno);
+                return projectno;
             }
         }
 
@@ -259,6 +299,12 @@ namespace PWProjectFS.PWProvider
             return projectno;
         }
 
+
+        /// <summary>
+        /// 从路径反推文件夹id，如果不存在，返回-1
+        /// </summary>
+        /// <param name="lpctstrPath"></param>
+        /// <returns></returns>
         public int GetProjectIdByNamePath(string lpctstrPath)
         {
             // use lock to ensure thread safe calling pw apis
@@ -287,6 +333,46 @@ namespace PWProjectFS.PWProvider
                     
                 };
                 return this.m_cache.TryGet(cache_key, get_value_func);
+            }
+        }
+
+        public PWProject GetProjectByNamePath(string lpctstrPath)
+        {
+            // use lock to ensure thread safe calling pw apis
+            lock (this._lock)
+            {
+                var cache_key = $"GetProjectIdByNamePath:{lpctstrPath}";
+                Func<int> get_value_func = () =>
+                {
+                    try
+                    {
+                        return this._GetProjectIdByNamePath(lpctstrPath);
+                    }
+                    catch (PWException e)
+                    {
+                        if (e.PWErrorId == 50000)
+                        {
+                            // 用-1来表示目录不存在情况
+                            // 和原来aaApi_GetProjectIdByNamePath的返回值有所区分
+                            return -1;
+                        }
+                        else
+                        {
+                            throw e;
+                        }
+                    }
+
+                };
+                var projectno = this.m_cache.TryGet(cache_key, get_value_func);
+                if (projectno <= 0)
+                {
+                    return null;
+                }
+                else
+                {
+                    var proj = this.Read(projectno);
+                    return proj;
+                }
             }
         }
 
