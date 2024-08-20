@@ -12,6 +12,7 @@ namespace PWProjectFS.DokanyFS
     {
         public NtStatus Unmounted(IDokanFileInfo info)
         {
+            this.provider.InvalidateCache();
             this.provider.Uninitialize();
             return DokanResult.Success;
         }
@@ -104,6 +105,27 @@ namespace PWProjectFS.DokanyFS
             }
             // if dir is not empty it can't be deleted
             this.provider.ProjectHelper.Delete(projectId);
+            return DokanResult.Success;
+        }
+
+        private NtStatus MoveDirectory(string filename,
+            string newname,
+            bool replace,
+            IDokanFileInfo info)
+        {            
+            var oldpath = this.GetPath(filename);
+            var newpath = this.GetPath(newname);
+
+            if (this.provider.ProjectHelper.IsNamePathExists(newpath) && !replace)
+            {
+                return DokanResult.AlreadyExists;
+            }
+            var oldprojectid = this.provider.ProjectHelper.GetProjectIdByNamePath(oldpath);
+            if (oldprojectid == -1)
+            {
+                return DokanResult.PathNotFound;
+            }
+            this.provider.ProjectHelper.MoveDirectory(oldpath, newpath);
             return DokanResult.Success;
         }
     }

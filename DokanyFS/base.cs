@@ -62,13 +62,18 @@ namespace PWProjectFS.DokanyFS
         {
             using (var dokanLogger = new ConsoleLogger("[ProjectWise] "))
             using(var dokan = new Dokan(dokanLogger))
-            {
+            {  
                 var fs = new PWFSOperations(dokanLogger, projectno, provider);
                 var dokanBuilder = new DokanInstanceBuilder(dokan)
                         .ConfigureLogger(() => dokanLogger)
                         .ConfigureOptions(options =>
                         {
-                            options.Options = DokanOptions.DebugMode | DokanOptions.EnableNotificationAPI;
+                            //options.Options = DokanOptions.DebugMode | DokanOptions.EnableNotificationAPI;
+#if DEBUG
+                            options.Options = DokanOptions.DebugMode | DokanOptions.RemovableDrive;
+#else
+                             options.Options = DokanOptions.RemovableDrive;
+#endif
                             options.MountPoint = mountPath;
                         });
                 using (var dokanInstance = dokanBuilder.Build(fs))
@@ -96,7 +101,10 @@ namespace PWProjectFS.DokanyFS
             {
                 _base_pw_path = this.provider.ProjectHelper.GetNamePathByProjectId(this.base_pw_projectno);
             }
-       
+
+            _base_pw_path = _base_pw_path.TrimEnd('\\');
+            filename = filename.TrimStart('\\');
+
             if (filename == "\\" || string.IsNullOrWhiteSpace(filename))
             {
                 // base pw dir
@@ -105,8 +113,7 @@ namespace PWProjectFS.DokanyFS
             else
             {
                 return _base_pw_path + "\\" + filename;
-            }
-            
+            }            
         }
     }
 }

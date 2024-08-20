@@ -49,7 +49,7 @@ namespace PWProjectFS.DokanyFS
 
         public NtStatus DeleteFile(string filename, IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
 
@@ -57,7 +57,7 @@ namespace PWProjectFS.DokanyFS
             string filename,
             IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus FindFiles(
@@ -127,7 +127,27 @@ namespace PWProjectFS.DokanyFS
             bool replace,
             IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            this.provider.Activate();
+            var oldpath = this.GetPath(filename);
+            var oldprojectid = this.provider.ProjectHelper.GetProjectIdByNamePath(oldpath);
+            if (oldprojectid > 0 || info.IsDirectory)
+            {
+                // 是移动目录的清空，info.IsDirectory传递的参数不准
+                return this.MoveDirectory(filename, newname, replace, info);
+            }
+            else
+            {
+                var old_pwdoc = this.provider.DocumentHelper.GetDocumentByNamePath(oldpath);
+                if (old_pwdoc == null)
+                {
+                    return DokanResult.FileNotFound;
+                }
+                else
+                {
+                    // TODO, rename document
+                    return DokanResult.NotImplemented;
+                }
+            }          
         }
 
         public NtStatus ReadFile(
@@ -138,17 +158,17 @@ namespace PWProjectFS.DokanyFS
             IDokanFileInfo info)
         {
             readBytes = 0;
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus SetEndOfFile(string filename, long length, IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus SetAllocationSize(string filename, long length, IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus SetFileAttributes(
@@ -156,7 +176,7 @@ namespace PWProjectFS.DokanyFS
             FileAttributes attr,
             IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus SetFileTime(
@@ -166,7 +186,7 @@ namespace PWProjectFS.DokanyFS
             DateTime? mtime,
             IDokanFileInfo info)
         {
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         public NtStatus UnlockFile(string filename, long offset, long length, IDokanFileInfo info)
@@ -189,7 +209,7 @@ namespace PWProjectFS.DokanyFS
             IDokanFileInfo info)
         {
             writtenBytes = 0;
-            return DokanResult.Error;
+            return DokanResult.NotImplemented;
         }
 
         
@@ -238,7 +258,7 @@ namespace PWProjectFS.DokanyFS
             // 一些特殊情况的处理
             if(fileName=="\\")
             {
-                if(searchPattern == "__drive_fs_keepalive" || searchPattern== "uwstconfig")
+                if(searchPattern == "__drive_fs_keepalive" || searchPattern== "uwstconfig" || searchPattern== "drive_fs_notification")
                 {
                     return DokanResult.Success;
                 }                
@@ -263,18 +283,25 @@ namespace PWProjectFS.DokanyFS
             }
             else
             {
-               
+                // TODO, 其他情况下的查询
+                // 比如会filename和searchPattern拼接起来是一个,一般是目录的情况为多
+                var fPath = this.GetPath(fileName + searchPattern);
+                var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(fPath);
+                if (pw_proj != null)
+                {
+                    files.Add(pw_proj.toFileInformation());
+                    return DokanResult.Success;
+                }
+                else
+                {
+                    var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(fPath);
+                    if (pw_doc != null)
+                    {
+                        files.Add(pw_doc.toFileInformation());
+                        return DokanResult.Success;
+                    }
+                }
             }
-            //var file = new FileInformation
-            //{
-            //    Attributes = FileAttributes.Directory,
-            //    CreationTime = DateTime.Now,
-            //    LastAccessTime = DateTime.Now,
-            //    LastWriteTime = DateTime.Now,
-            //    Length = 0,
-            //    FileName = "test"
-            //};
-            //files = new FileInformation[1] { file };
             return DokanResult.Success;
         }
     }

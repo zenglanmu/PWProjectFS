@@ -783,27 +783,28 @@ namespace PWProjectFS.PWApiWrapper
 			AADMSPROJGF_COMPONENT_INSTANCEID = 0x2000,
 			AADMSPROJGF_REQUIREDONCREATE = 0x88,
 			AADMSPROJGF_ALL = 0x3FFF
-		}
+		}		
 
-		public enum AADMSPROJITEM_Flag
+		[Flags]
+		public enum AADMSProjFlags
 		{
-			AADMSPROJF_PROJECTID = 1,
-			AADMSPROJF_ENVID = 2,
-			AADMSPROJF_PARENTID = 4,
-			AADMSPROJF_STORAGEID = 8,
-			AADMSPROJF_MANAGERID = 16,
-			AADMSPROJF_TYPEID = 32,
-			AADMSPROJF_WORKFLOW = 64,
-			AADMSPROJF_NAME = 128,
-			AADMSPROJF_REQUIREDONCREATE = 136,
-			AADMSPROJF_DESC = 256,
-			AADMSPROJF_MGRTYPE = 1024,
-			AADMSPROJF_WSPACEPROFID = 2048,
-			AADMSPROJF_GUID = 4096,
-			AADMSPROJF_COMPONENT_CLASSID = 8192,
-			AADMSPROJF_PROJFLAGS = 16384,
-			AADMSPROJF_COMPONENT_INSTANCEID = 32768,
-			AADMSPROJF_ALL = 65535
+			ProjectId = 1,
+			Envid = 2,
+			ParentId = 4,
+			StorageId = 8,
+			ManagerId = 16,
+			TypeId = 32,
+			Workflow = 64,
+			Name = 128,
+			Desc = 256,
+			Mgrtype = 1024,
+			WspaceProfId = 2048,
+			Guid = 4096,
+			ComponentClassId = 8192,
+			ProjFlags = 16384,
+			ComponentInstanceId = 32768,
+			RequiredOnCreate = StorageId | Name, // Combine flags
+			All = 65535 // All flags combined
 		}
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -1956,8 +1957,14 @@ namespace PWProjectFS.PWApiWrapper
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern bool aaApi_SetVersionRecord(int lVersionType, int lReleaseNo, int lMajorNo, int lMinorNo, int lBuildNo, string lpctstrComment);
 
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode, EntryPoint = "aaApi_ModifyProject2")]
+		public static extern bool aaApi_ModifyProject2_ByVault(ref VaultDescriptor vaultDescriptor);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode, EntryPoint = "aaApi_ModifyProject2")]
+		public static extern bool aaApi_ModifyProject2(IntPtr lpProject);
+
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
-		public static extern bool aaApi_ModifyProject2(ref VaultDescriptor vaultDescriptor);
+		public static extern bool aaApi_SetParentProject(int lChildId, int lParentId);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern bool aaApi_GUIDModifyProject(ref Guid projectGuid, int storageId, int managerId, int projectType, string name, string description);

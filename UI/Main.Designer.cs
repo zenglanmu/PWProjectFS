@@ -31,6 +31,7 @@ namespace PWProjectFS.UI
         {
             this.btnLogin = new System.Windows.Forms.Button();
             this.btnMount = new System.Windows.Forms.Button();
+            this.btnClearCache = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnLogin
@@ -53,15 +54,27 @@ namespace PWProjectFS.UI
             this.btnMount.UseVisualStyleBackColor = true;
             this.btnMount.Click += new System.EventHandler(this.btnMount_Click);
             // 
+            // btnClearCache
+            // 
+            this.btnClearCache.Location = new System.Drawing.Point(140, 320);
+            this.btnClearCache.Name = "btnClearCache";
+            this.btnClearCache.Size = new System.Drawing.Size(216, 49);
+            this.btnClearCache.TabIndex = 2;
+            this.btnClearCache.Text = "清空缓存";
+            this.btnClearCache.UseVisualStyleBackColor = true;
+            this.btnClearCache.Click += new System.EventHandler(this.btnClearCache_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.btnClearCache);
             this.Controls.Add(this.btnMount);
             this.Controls.Add(this.btnLogin);
             this.Name = "Main";
             this.Text = "Form1";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Main_FormClosing);
             this.ResumeLayout(false);
 
         }
@@ -70,5 +83,6 @@ namespace PWProjectFS.UI
 
         private System.Windows.Forms.Button btnLogin;
         private System.Windows.Forms.Button btnMount;
+        private System.Windows.Forms.Button btnClearCache;
     }
 }

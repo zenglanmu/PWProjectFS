@@ -22,6 +22,7 @@ namespace PWProjectFS.PWProvider
     public class PWProject
     {
         public int id { get; set; }
+        public int parentid { get; set; }
         public string name { get; set; }
         public string description { get; set; }
         public string label { get; set; } // 根据用户的设置，是显示name还是description
@@ -111,6 +112,7 @@ namespace PWProjectFS.PWProvider
         {
             var project = new PWProject();
             project.id = dmscli.aaApi_GetProjectNumericProperty(dmscli.ProjectProperty.ID, i);
+            project.parentid = dmscli.aaApi_GetProjectNumericProperty(dmscli.ProjectProperty.ParentID, i);
             project.name = dmscli.aaApi_GetProjectStringProperty(dmscli.ProjectProperty.Name, i);
             project.description = dmscli.aaApi_GetProjectStringProperty(dmscli.ProjectProperty.Desc, i);
             if (!useDescriptions)
@@ -213,10 +215,16 @@ namespace PWProjectFS.PWProvider
             projItem.lTypeId = 0;
             //使用父目录的存储区设置
             projItem.lStorageId = lStorageId;
-            projItem.ulFlags = (UInt32)(UInt32)(dmscli.AADMSPROJITEM_Flag.AADMSPROJF_PARENTID | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_NAME
-                    | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_DESC | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_STORAGEID |
-                    dmscli.AADMSPROJITEM_Flag.AADMSPROJF_MANAGERID | dmscli.AADMSPROJITEM_Flag.AADMSPROJF_TYPEID |
-                    dmscli.AADMSPROJITEM_Flag.AADMSPROJF_MGRTYPE);
+
+            projItem.ulFlags = (uint)(
+                dmscli.AADMSProjFlags.ParentId |
+                dmscli.AADMSProjFlags.Name |
+                dmscli.AADMSProjFlags.Desc |                
+                dmscli.AADMSProjFlags.ManagerId |
+                dmscli.AADMSProjFlags.Mgrtype |
+                dmscli.AADMSProjFlags.TypeId |
+                dmscli.AADMSProjFlags.StorageId                
+                );
             IntPtr pd = Util.StructureToPtr(projItem);
 
             var ret = dmscli.aaApi_CreateProject2(pd, 0);
@@ -374,7 +382,7 @@ namespace PWProjectFS.PWProvider
                 }
                 else
                 {
-                    var proj = this.Read(projectno);
+                    var proj = this._Read(projectno);
                     return proj;
                 }
             }
@@ -413,6 +421,81 @@ namespace PWProjectFS.PWProvider
                     return this._GetNamePathByProjectId(projectId);
                 };
                 return this.m_cache.TryGet(cache_key, get_value_func);
+            }
+        }
+
+
+        /// <summary>
+        /// 更新项目信息
+        /// </summary>
+        /// <param name="proj"></param>
+        /// <returns></returns>
+        private void _Update(int projectId, string new_name)
+        {            
+            var projItem = new dmscli.AADMSPROJITEM();
+            projItem.lptstrName = new_name;
+            projItem.lptstrDesc = new_name;
+            projItem.lProjectId = projectId;
+            // 指定要更新的数据
+            projItem.ulFlags = projItem.ulFlags = (uint)(
+                dmscli.AADMSProjFlags.Name |
+                dmscli.AADMSProjFlags.Desc
+             );
+
+            IntPtr lpProject = Util.StructureToPtr(projItem);
+            var ret = dmscli.aaApi_ModifyProject2(lpProject);
+
+            if (!ret)
+            {
+                Util.FreeHGlobal(ref lpProject);
+                throw PWException.GetPWLastException();
+            }
+            projItem = Util.PtrToStructure<dmscli.AADMSPROJITEM>(lpProject);
+            return;
+        }
+
+
+        /// <summary>
+        /// 设置项目的父级。注意aaApi_ModifyProject2方法并不能修改ParentId
+        /// </summary>
+        /// <param name="projectId"></param>
+        /// <param name="parentProjectId"></param>
+        private void _SetProjectParent(int projectId, int parentProjectId)
+        {
+            // Current user must have rights to create and delete projects. See aaApi_GetUserNumericSetting() function for more information.
+            var ret = dmscli.aaApi_SetParentProject(projectId, parentProjectId);
+            if (!ret)
+            {
+                throw PWException.GetPWLastException();
+            }
+        }
+
+
+
+        public void MoveDirectory(string oldpath, string newpath)
+        {
+            var oldprojectid = this.GetProjectIdByNamePath(oldpath);
+            lock (this._lock)
+            {                
+                var proj = this._Read(oldprojectid);
+                var parentPath = newpath.Substring(0, newpath.LastIndexOf("\\"));
+                var new_parentid = this._GetProjectIdByNamePath(parentPath);
+                var new_basename = newpath.Substring(newpath.LastIndexOf("\\") + 1);
+                if (new_basename != proj.name)
+                {
+                    // 重命名的情况
+                    this._Update(oldprojectid, new_basename);
+                }
+                if (proj.parentid != new_parentid)
+                {
+                    this._SetProjectParent(proj.id, new_parentid);
+                }
+                
+                // 清空缓存，防止移动后老的还在
+                var cache_key = $"GetNamePathByProjectId:{oldprojectid}";
+                this.m_cache.Delete(cache_key);
+                var cache_key_pattern = "GetProjectIdByNamePath:*";
+                this.m_cache.DeleteByValue(oldpath, cache_key_pattern);
             }
         }
     }

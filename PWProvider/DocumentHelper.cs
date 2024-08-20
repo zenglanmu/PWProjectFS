@@ -204,7 +204,7 @@ namespace PWProjectFS.PWProvider
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                var cache_key = $"GetDocumentByNamePath:{docFullPath}";
+                var cache_key = $"GetNamePathByProjectId:{docFullPath}";
                 Func<PWDocument> get_value_func = () =>
                 {
                     try

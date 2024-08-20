@@ -39,5 +39,18 @@ namespace PWProjectFS.UI
             }
             
         }
+
+        private void Main_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            
+        }
+
+        private void btnClearCache_Click(object sender, EventArgs e)
+        {
+            if (this.provider != null)
+            {
+                this.provider.InvalidateCache();
+            }
+        }
     }
 }
