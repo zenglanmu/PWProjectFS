@@ -280,6 +280,10 @@ namespace PWProjectFS.PWProvider
             lock (this._lock)
             {
                 this._Delete(projectId);
+                var cache_key = $"GetNamePathByProjectId:{projectId}";
+                this.m_cache.Delete(cache_key);
+                var cache_key_pattern = "GetProjectIdByNamePath:*";
+                this.m_cache.DeleteByValue(projectId, cache_key_pattern);
             }
         }
 

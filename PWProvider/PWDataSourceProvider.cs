@@ -124,5 +124,10 @@ namespace PWProjectFS.PWProvider
 			dmscli.aaApi_DatasourceIsDisconnected(m_dsHandle, ref isDisconnected);
 			return !isDisconnected;
 		}
+
+		public void InvalidateCache()
+        {
+			this.m_cache.Invalidate();
+        }
 	}
 }

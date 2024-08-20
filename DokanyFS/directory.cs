@@ -40,7 +40,7 @@ namespace PWProjectFS.DokanyFS
             volumeLabel = "ProjectWise";
             fileSystemName = string.Empty;
             maximumComponentLength = 128;
-            features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.CaseSensitiveSearch |
+            features = FileSystemFeatures.CasePreservedNames |
                        FileSystemFeatures.PersistentAcls |FileSystemFeatures.UnicodeOnDisk;
             return DokanResult.Success;
         }
