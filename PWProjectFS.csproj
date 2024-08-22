@@ -56,6 +56,7 @@
     <Compile Include="DokanyFS\base.cs" />
     <Compile Include="DokanyFS\directory.cs" />
     <Compile Include="DokanyFS\file.cs" />
+    <Compile Include="DokanyFS\FileContext.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="PWApiWrapper\CommonDlg\FmSelectProjectDlg.cs" />
     <Compile Include="PWApiWrapper\exception.cs" />

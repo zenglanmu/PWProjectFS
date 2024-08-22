@@ -40,7 +40,7 @@ namespace PWProjectFS.DokanyFS
         {
             volumeLabel = "ProjectWise";
             fileSystemName = string.Empty;
-            maximumComponentLength = 128;
+            maximumComponentLength = 256;
             features = FileSystemFeatures.CasePreservedNames |
                        FileSystemFeatures.PersistentAcls |FileSystemFeatures.UnicodeOnDisk;
             return DokanResult.Success;
@@ -48,6 +48,7 @@ namespace PWProjectFS.DokanyFS
 
         private NtStatus OpenDirectory(string filePath, IDokanFileInfo info)
         {
+            // 假如上面传值有问题的特殊处理
             if (filePath == null)
             {
                 return NtStatus.Success;
@@ -66,7 +67,6 @@ namespace PWProjectFS.DokanyFS
 
         private NtStatus CreateDirectory(string fileName, IDokanFileInfo info)
         {
-            this.provider.Activate();
             if (fileName == null)
             {
                 return NtStatus.Success;
@@ -104,29 +104,9 @@ namespace PWProjectFS.DokanyFS
                 return DokanResult.DirectoryNotEmpty;
             }
             // if dir is not empty it can't be deleted
-            this.provider.ProjectHelper.Delete(projectId);
+            // just check here, if we could delete the directory - the true deletion is in Cleanup            
             return DokanResult.Success;
         }
-
-        private NtStatus MoveDirectory(string filename,
-            string newname,
-            bool replace,
-            IDokanFileInfo info)
-        {            
-            var oldpath = this.GetPath(filename);
-            var newpath = this.GetPath(newname);
-
-            if (this.provider.ProjectHelper.IsNamePathExists(newpath) && !replace)
-            {
-                return DokanResult.AlreadyExists;
-            }
-            var oldprojectid = this.provider.ProjectHelper.GetProjectIdByNamePath(oldpath);
-            if (oldprojectid == -1)
-            {
-                return DokanResult.PathNotFound;
-            }
-            this.provider.ProjectHelper.MoveDirectory(oldpath, newpath);
-            return DokanResult.Success;
-        }
+        
     }
 }

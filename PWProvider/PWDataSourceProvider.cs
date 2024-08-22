@@ -38,7 +38,7 @@ namespace PWProjectFS.PWProvider
 			// 默认60秒过期
 			this.m_cache = new PWResourceCache(60);
 			this.m_projectHelper = new ProjectHelper(this._lock, this.m_cache);
-			this.m_documentHelper = new DocumentHelper(this._lock, this.m_cache);
+			this.m_documentHelper = new DocumentHelper(this._lock, this.m_cache, this.m_projectHelper);
 
 		}
 
@@ -129,5 +129,35 @@ namespace PWProjectFS.PWProvider
         {
 			this.m_cache.Invalidate();
         }
+	}
+
+	
+	/// <summary>
+	/// 扩展缓存类，将一些常用的功能放里面
+	/// </summary>
+	public static class PWCacheExtensions
+    {
+		public static int GetTimeZoneMinutes(this PWResourceCache cache)
+        {
+			var cache_key = "GetTimeZoneMinutes";
+			int expire_seconds = 3600; // 数据库时区，这个基本不会变的
+			Func<int> get_value_func = () =>
+			{
+				return Util.GetTimeZoneMinutes();
+			};
+			return cache.TryGet(cache_key, get_value_func, expire_seconds);
+        }
+
+		public static bool GetDescriptionUsage(this PWResourceCache cache)
+        {
+			// 用户使用描述还是名称
+			var cache_key = "GetDescriptionUsage";
+			Func<bool> get_value_func = () =>
+			{
+				return dmawin.aaApi_GetDescriptionUsage();
+			};
+			return cache.TryGet(cache_key, get_value_func);
+		}
+
 	}
 }

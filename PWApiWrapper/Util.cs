@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Globalization;
@@ -198,6 +199,57 @@ namespace PWProjectFS.PWApiWrapper
 			}
 			return result;
 		}
+	}
+
+	public class PWTempDir : IDisposable
+    {
+		private bool _disposed = false;
+		private string tempFilePath;
+
+		public PWTempDir()
+        {
+			string sysTempPath = Path.GetTempPath();
+			string guid = Guid.NewGuid().ToString();
+			string tempFilePath = sysTempPath + "pwtemp\\" + guid;
+			if (!Directory.Exists(tempFilePath))
+			{
+				Directory.CreateDirectory(tempFilePath);
+			}
+			this.tempFilePath = tempFilePath;
+		}
+
+		public string GetTempDir()
+        {
+			return this.tempFilePath;
+        }
+
+		// Implement IDisposable
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!_disposed)
+			{
+				if (disposing)
+				{
+					// Free managed resources
+					try
+					{
+						Directory.Delete(this.tempFilePath, true);
+					}
+					catch (Exception e)
+					{
+						// pass
+					}
+				}
+				_disposed = true;
+			}
+		}
+
 	}
 }
 

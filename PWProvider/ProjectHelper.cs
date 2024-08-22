@@ -108,8 +108,10 @@ namespace PWProjectFS.PWProvider
             }
         }
 
-        private PWProject PopulateProjectFromBuffer(int i, int timezone, bool useDescriptions)
+        private PWProject PopulateProjectFromBuffer(int i)
         {
+            int timezone = this.m_cache.GetTimeZoneMinutes();
+            bool useDescriptions = this.m_cache.GetDescriptionUsage();
             var project = new PWProject();
             project.id = dmscli.aaApi_GetProjectNumericProperty(dmscli.ProjectProperty.ID, i);
             project.parentid = dmscli.aaApi_GetProjectNumericProperty(dmscli.ProjectProperty.ParentID, i);
@@ -139,9 +141,7 @@ namespace PWProjectFS.PWProvider
         private PWProject _Read(int projectId)
         {
             SelectProject(projectId);
-            int timeZoneMinutes = Util.GetTimeZoneMinutes();
-            bool useDescriptions = dmawin.aaApi_GetDescriptionUsage();
-            return PopulateProjectFromBuffer(0, timeZoneMinutes, useDescriptions);
+            return PopulateProjectFromBuffer(0);
         }
 
         public PWProject Read(int projectId)
@@ -169,12 +169,11 @@ namespace PWProjectFS.PWProvider
             {
                 //pass
             }
-            int timeZoneMinutes = Util.GetTimeZoneMinutes();
-            bool useDescriptions = dmawin.aaApi_GetDescriptionUsage();
+
             var projects = new List<PWProject>();
             for (int i = 0; i < projnum; i++)
             {
-                var proj = this.PopulateProjectFromBuffer(i, timeZoneMinutes, useDescriptions);
+                var proj = this.PopulateProjectFromBuffer(i);
                 projects.Add(proj);
             }
             return projects;
@@ -313,11 +312,101 @@ namespace PWProjectFS.PWProvider
 
 
         /// <summary>
+        /// 根据label名称取值
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="parentProjectId"></param>
+        /// <returns></returns>
+        private PWProject _GetProjectByNameAndProjectId(string label, int parentProjectId)
+        {
+            // aaApi_SelectProjectsByStruct 这个方法一直报缓冲区大小不够的错误，所以只好都出子目录再匹配
+            var projects = this._ReadByParent(parentProjectId);
+            foreach(var proj in projects)
+            {
+                if (proj.label == label)
+                {
+                    return proj;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// 从路径反推文件夹id，如果不存在，返回-1
+        /// aaApi_GetProjectIdByNamePath对于超长的会返回不正确的结果
+        /// 因此递归查询，考虑到有缓存，这个代价也是可以接受的
         /// </summary>
         /// <param name="lpctstrPath"></param>
         /// <returns></returns>
         public int GetProjectIdByNamePath(string lpctstrPath)
+        {
+            lpctstrPath = lpctstrPath.TrimStart('\\');
+            lpctstrPath = lpctstrPath.TrimEnd('\\');
+            if (string.IsNullOrWhiteSpace(lpctstrPath))
+            {
+                return -1;
+            }
+            var lastPart = lpctstrPath.Substring(lpctstrPath.LastIndexOf("\\") + 1);
+            if (lastPart == "desktop.ini")
+            {
+                // 特殊处理，上游会调用来判断有没有这个特殊文件，即使有，也应该是文件不是目录
+                return -1;
+            }
+            // 先看看能不能直接找到
+            var projectId = this.GetProjectIdByNamePathFailForToolong(lpctstrPath);
+            if (projectId > -1)
+            {
+                return projectId;
+            }
+            lock (this._lock)
+            {
+                // 递归找
+                var full_path_cache_key = $"GetProjectIdByNamePath:{lpctstrPath}";
+                // 因为GetProjectIdByNamePathFailForToolong先获取了，已经会有不成功的缓存
+                this.m_cache.Delete(full_path_cache_key);
+
+                var subParts = lpctstrPath.Split('\\');
+                var subPathNames = new List<string>(); // 逐级拼接出来
+                for(int i=0; i < subParts.Length; i++)
+                {
+                    subPathNames.Add(string.Join("\\", subParts.Take(i + 1)));
+                }
+                var lastProjectId = 0;
+                foreach(var subPathName in subPathNames)
+                {
+                    var label = subPathName.Substring(subPathName.LastIndexOf("\\") + 1);
+                    var cache_key = $"GetProjectIdByNamePath:{subPathName}";
+                    Func<int> get_value_func = () =>
+                    {
+                        var proj = this._GetProjectByNameAndProjectId(label, lastProjectId);
+                        if (proj != null)
+                        {
+                            return proj.id;
+                        }
+                        else
+                        {                            
+                            return -1;
+                        }
+                    };
+                    lastProjectId = this.m_cache.TryGet(cache_key, get_value_func);
+                    if (lastProjectId == -1)
+                    {
+                        // 因为是从上到下找的，如果某层级找不到，说明确实没有
+                        return -1;
+                    }
+                }
+                return lastProjectId;                
+            }            
+            
+        }
+
+        /// <summary>
+        /// 从路径反推文件夹id，如果不存在，返回-1
+        /// 对于超长的会返回不正确的结果,也会返回-1
+        /// </summary>
+        /// <param name="lpctstrPath"></param>
+        /// <returns></returns>
+        private int GetProjectIdByNamePathFailForToolong(string lpctstrPath)
         {
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
@@ -352,30 +441,8 @@ namespace PWProjectFS.PWProvider
         {
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
-            {
-                var cache_key = $"GetProjectIdByNamePath:{lpctstrPath}";
-                Func<int> get_value_func = () =>
-                {
-                    try
-                    {
-                        return this._GetProjectIdByNamePath(lpctstrPath);
-                    }
-                    catch (PWException e)
-                    {
-                        if (e.PWErrorId == 50000)
-                        {
-                            // 用-1来表示目录不存在情况
-                            // 和原来aaApi_GetProjectIdByNamePath的返回值有所区分
-                            return -1;
-                        }
-                        else
-                        {
-                            throw e;
-                        }
-                    }
-
-                };
-                var projectno = this.m_cache.TryGet(cache_key, get_value_func);
+            {                
+                var projectno = this.GetProjectIdByNamePath(lpctstrPath);
                 if (projectno <= 0)
                 {
                     return null;
@@ -496,6 +563,8 @@ namespace PWProjectFS.PWProvider
                 this.m_cache.Delete(cache_key);
                 var cache_key_pattern = "GetProjectIdByNamePath:*";
                 this.m_cache.DeleteByValue(oldpath, cache_key_pattern);
+                // 防止前面获取过newpath，返回空的情况
+                this.m_cache.DeleteByValue(newpath, cache_key_pattern);
             }
         }
     }

@@ -1976,6 +1976,9 @@ namespace PWProjectFS.PWApiWrapper
 		public static extern int aaApi_SelectProject(int lProjectId);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern int aaApi_SelectProjectsByStruct(int lProjectId, IntPtr lpCriteria);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern int aaApi_GUIDSelectProject(ref Guid guid);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
@@ -2239,6 +2242,9 @@ namespace PWProjectFS.PWApiWrapper
 		public static extern bool aaApi_GUIDCreateDocument(out Guid documentGuid, ref Guid projectId, int storageID, int fileType, DocumentType itemType, int applicationID, int departmentID, int workspaceProfileID, string sourceFilePath, string fileName, string name, string description, string version, bool leaveCheckedOut, DocumentCreationFlag creationFlags, StringBuilder workingFile, int workingFileBufferSize, ref int attributeID);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern bool aaApi_GUIDModifyDocument(ref Guid documentGuid, int fileType, int itemType, int applicationId, int departmentId, int workspaceProfileId, string docFileName, string docName, string docDesc);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern bool aaApi_MoveDocument(int lSourceProjectNo, int lSourceDocumentId, int lTargetProjectNo, ref int lpTargetDocumentId, string lpctstrWorkdir, string lpctstrFileName, string lpctstrName, string lpctstrDesc, DocumentCopyFlags ulFlags);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
@@ -2249,6 +2255,9 @@ namespace PWProjectFS.PWApiWrapper
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern bool aaApi_GUIDCheckOutDocument(ref Guid documentGuid, string checkOutDirectory, StringBuilder localCopyFileNameAndPath, int localCopyFileNameAndPathBufferSize);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern bool aaApi_GUIDRefreshDocumentServerCopy(ref Guid documentGuid);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern bool aaApi_GUIDGetDocumentCheckedOutFileName(ref Guid documentGuid, StringBuilder localCopyFileNameAndPath, int localCopyFileNameAndPathBufferSize);
