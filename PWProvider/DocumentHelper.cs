@@ -167,10 +167,27 @@ namespace PWProjectFS.PWProvider
 
         private void _Delete(string documentId)
         {
-            var documentGuid = SelectDocument(documentId);
+            var documentGuid = Guid.Parse(documentId);
             if (!dmscli.aaApi_GUIDDeleteDocument(dmscli.DocumentDeleteMasks.None, ref documentGuid))
             {
                 throw PWException.GetPWLastException();
+            }
+        }
+
+        private void _Free(string documentId)
+        {
+            var documentGuid = Guid.Parse(documentId);
+            if (!dmscli.aaApi_GUIDFreeDocument(ref documentGuid, this.m_cache.GetCurrentUserId()))
+            {
+                throw PWException.GetPWLastException();
+            }
+        }
+
+        public void Free(string documentId)
+        {
+            lock (this._lock)
+            {
+                this._Free(documentId);
             }
         }
 
@@ -180,6 +197,23 @@ namespace PWProjectFS.PWProvider
             lock (this._lock)
             {
                 var doc = this.Read(documentId);
+                // 检查是否检出了，如果本机检出了就删除，否则抛IOException
+                if (doc.is_final)
+                {
+                    throw new IOException("PW文件处于最终状态");
+                }
+                if(doc.locked)
+                {
+                    if (doc.locked_by_me)
+                    {
+                        this._Free(documentId);
+                    }
+                    else
+                    {
+                        throw new IOException("PW文件锁定");
+                    }
+                    
+                }
                 this._Delete(documentId);
                 var cache_key = $"GetDocumentByNameAndProjectId:{doc.projectId}-{doc.filename}";
                 this.m_cache.Delete(cache_key);
@@ -257,7 +291,10 @@ namespace PWProjectFS.PWProvider
                         // create empty file then upload to pw
                         var filelocalpath = Path.Combine(tempdir.GetTempDir(), filename);
                         File.Create(filelocalpath).Dispose();
-                        return this._Create(projectId, filelocalpath);
+                        var doc = this._Create(projectId, filelocalpath);
+                        var cache_key = $"GetDocumentByNameAndProjectId:{projectId}-{filename}";
+                        this.m_cache.Delete(cache_key);
+                        return doc;
                     }
                     
                 }
@@ -288,6 +325,11 @@ namespace PWProjectFS.PWProvider
             if (docFullPath.EndsWith("\\"))
             {
                 // 明显传的是目录的情况
+                return null;
+            }
+            if (!docFullPath.Contains("\\"))
+            {
+                // 没有子路径的情况，显然不是文件
                 return null;
             }
             string lpctstrPath = docFullPath.Substring(0, docFullPath.LastIndexOf("\\"));
@@ -365,6 +407,11 @@ namespace PWProjectFS.PWProvider
                 if (!ret)
                 {
                     throw PWException.GetPWLastException();
+                }
+                if (checkout)
+                {
+                    doc.locked = true;
+                    doc.locked_by_me = true;
                 }
                 return localPath.ToString();
 

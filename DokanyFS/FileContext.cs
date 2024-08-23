@@ -50,9 +50,8 @@ namespace PWProjectFS.DokanyFS
         public static PWFileContext CreateFileContext(PWDataSourceProvider provider, string docFullPath, bool isPagingIo, FileMode mode, System.IO.FileAccess access, FileShare share = FileShare.None, FileOptions options = FileOptions.None)
         {
             var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
-            if (pw_doc !=null)
-            {
-                return new PWFileContext(
+            // 即使pw_doc为空也得返回。后面读取buffer的操作再处理
+            return new PWFileContext(
                 provider,
                 pw_doc,
                 isPagingIo,
@@ -60,13 +59,7 @@ namespace PWProjectFS.DokanyFS
                 access,
                 share,
                 options
-                );
-            }
-            else
-            {
-                return null;
-            }
-            
+            );
         }
 
         /// <summary>
@@ -78,12 +71,18 @@ namespace PWProjectFS.DokanyFS
         public int Read(byte[] buffer, long offset)
         {
             var bytesRead = 0;
-            var localWorkDirPath = this.GetPWDocLocalWorkPath();
-            using (var stream = new FileStream(localWorkDirPath, this.mode, this.access))
+            if (pw_doc != null)
             {
-                stream.Position = offset;
-                bytesRead = stream.Read(buffer, 0, buffer.Length);
-            }
+                var localWorkDirPath = this.GetPWDocLocalWorkPath();
+                if (localWorkDirPath != null)
+                {
+                    using (var stream = new FileStream(localWorkDirPath, this.mode, this.access))
+                    {
+                        stream.Position = offset;
+                        bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    }
+                }                
+            }            
             return bytesRead;
         }
 
@@ -95,13 +94,19 @@ namespace PWProjectFS.DokanyFS
         /// <returns></returns>
         public void Write(byte[] buffer, long offset)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath();
-            using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+            if (pw_doc != null)
             {
-                stream.Position = offset;
-                var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
-                stream.Write(buffer, 0, bytesToCopy);              
-            }
+                var localWorkDirPath = this.GetPWDocLocalWorkPath();
+                if (localWorkDirPath != null)
+                {
+                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+                    {
+                        stream.Position = offset;
+                        var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
+                        stream.Write(buffer, 0, bytesToCopy);
+                    }
+                }
+            }            
         }
 
         /// <summary>
@@ -110,15 +115,21 @@ namespace PWProjectFS.DokanyFS
         /// <param name="buffer"></param>
         public void Append(byte[] buffer)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath();
-            using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+            if (pw_doc != null)
             {
-                // Offset of -1 is an APPEND: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
-                var offset = -1; 
-                stream.Position = offset;
-                var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
-                stream.Write(buffer, 0, bytesToCopy);
-            }
+                var localWorkDirPath = this.GetPWDocLocalWorkPath();
+                if (localWorkDirPath != null)
+                {
+                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+                    {
+                        // Offset of -1 is an APPEND: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
+                        var offset = -1;
+                        stream.Position = offset;
+                        var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
+                        stream.Write(buffer, 0, bytesToCopy);
+                    }
+                }
+            }            
         }
 
         /// <summary>
@@ -127,11 +138,18 @@ namespace PWProjectFS.DokanyFS
         /// </summary>
         public void Flush()
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath();
-            using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+            if (pw_doc != null)
             {
-                stream.Flush();
+                var localWorkDirPath = this.GetPWDocLocalWorkPath();
+                if (localWorkDirPath != null)
+                {
+                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+                    {
+                        stream.Flush();
+                    }
+                }
             }
+            
         }
 
         /// <summary>
@@ -140,11 +158,17 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void SetLength(long length)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath();
-            using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+            if (pw_doc != null)
             {
-                stream.SetLength(length);
-            }
+                var localWorkDirPath = this.GetPWDocLocalWorkPath();
+                if (localWorkDirPath != null)
+                {
+                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+                    {
+                        stream.SetLength(length);
+                    }
+                }
+            }            
         }
 
         /// <summary>
@@ -154,11 +178,18 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void Lock(long offset, long length)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath();
-            using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+            if (pw_doc != null)
             {
-                stream.Lock(offset, length);
+                var localWorkDirPath = this.GetPWDocLocalWorkPath();
+                if (localWorkDirPath != null)
+                {
+                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+                    {
+                        stream.Lock(offset, length);
+                    }
+                }
             }
+            
         }
 
         /// <summary>
@@ -168,31 +199,18 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void Unlock(long offset, long length)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath();
-            using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+            if (pw_doc != null)
             {
-                stream.Unlock(offset, length);
-            }
-        }
-
-        // Implement IDisposable
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
+                var localWorkDirPath = this.GetPWDocLocalWorkPath();
+                if (localWorkDirPath != null)
                 {
-                    // TODO, 看要不要怎么做释放资源，比如是不是更新保存的副本，释放pw文件占用啥的
+                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
+                    {
+                        stream.Unlock(offset, length);
+                    }
                 }
-                _disposed = true;
-            }
-        }
+            }            
+        }        
 
         protected Int32 GetNumOfBytesToCopy(Int32 bufferLength, long offset, FileStream stream)
         {
@@ -220,12 +238,17 @@ namespace PWProjectFS.DokanyFS
         {
             if (this._localWorkDirPath == null)
             {
+                if (this.share.HasFlag(FileShare.Delete))
+                {
+                    // 如果是删除的情况，不应该去检出
+                    return null;
+                }
                 // 只有当access和share都是Read时，才认为是只读打开
                 var checkout = true;
                 if (this.access == System.IO.FileAccess.Read)
                 {
-                    // 再检出share的情况
-                    if(this.share == FileShare.Read)
+                    // 再检查share的情况，如果是要删除，自然不用checkout            
+                    if(this.share == FileShare.Read )
                     {
                         checkout = false;
                     }
@@ -238,6 +261,7 @@ namespace PWProjectFS.DokanyFS
                 }
                 try
                 {
+                    checkout = true; // 先强制按检出弄，测试写入的功能
                     this._localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, checkout);
                 }
                 catch(PWException e)
@@ -246,19 +270,39 @@ namespace PWProjectFS.DokanyFS
                     {
                         // 对于具有最终状态的文档，操作无法执行。,错误码:58085
                         // 然而也用了读写打开的方式
-                        throw new IOException("文件处于最终状态");
+                        throw new IOException("PW文件处于最终状态");
                     }
                     else
                     {
                         throw e;
-                    }
-
-                    
-                }
-                
+                    }                    
+                }              
                 
             }
             return this._localWorkDirPath;
+        }
+
+        // Implement IDisposable
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // TODO, 看要不要怎么做释放资源，比如是不是更新保存的副本，释放pw文件占用啥的
+                    if(this.pw_doc.locked && this.pw_doc.locked_by_me)
+                    {
+                        //this.provider.DocumentHelper.Free(pw_doc.id);
+                    }
+                }
+                _disposed = true;
+            }
         }
     }
 

@@ -15,6 +15,7 @@ namespace PWProjectFS.PWProvider
 		private object _lock =null;
 
 		//private bool m_LoginStatus=false;
+
 		/* 表示登陆的状态 */
 		private string m_userName;
 		/* 登陆用户名 */
@@ -140,7 +141,7 @@ namespace PWProjectFS.PWProvider
 		public static int GetTimeZoneMinutes(this PWResourceCache cache)
         {
 			var cache_key = "GetTimeZoneMinutes";
-			int expire_seconds = 3600; // 数据库时区，这个基本不会变的
+			int expire_seconds = 3600*24; // 数据库时区，这个基本不会变的
 			Func<int> get_value_func = () =>
 			{
 				return Util.GetTimeZoneMinutes();
@@ -157,6 +158,17 @@ namespace PWProjectFS.PWProvider
 				return dmawin.aaApi_GetDescriptionUsage();
 			};
 			return cache.TryGet(cache_key, get_value_func);
+		}
+
+		public static int GetCurrentUserId(this PWResourceCache cache)
+		{
+			int expire_seconds = 3600 * 24; // 当前登陆用户的id
+			var cache_key = "GetCurrentUserId";
+			Func<int> get_value_func = () =>
+			{
+				return dmscli.aaApi_GetCurrentUserId();
+			};
+			return cache.TryGet(cache_key, get_value_func, expire_seconds);
 		}
 
 	}

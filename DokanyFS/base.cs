@@ -72,7 +72,7 @@ namespace PWProjectFS.DokanyFS
 #if DEBUG
                             options.Options = DokanOptions.DebugMode | DokanOptions.RemovableDrive;
 #else
-                             options.Options = DokanOptions.RemovableDrive;
+                            options.Options = DokanOptions.RemovableDrive;
 #endif
                             options.MountPoint = mountPath;
                         });

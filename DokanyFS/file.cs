@@ -23,7 +23,6 @@ namespace PWProjectFS.DokanyFS
             (info.Context as PWFileContext)?.Dispose();
             info.Context = null;
 
-            this.provider.Activate();
             var filePath = this.GetPath(fileName);
             if (info.DeleteOnClose)
             {
@@ -67,16 +66,49 @@ namespace PWProjectFS.DokanyFS
             FileAttributes attributes,
             IDokanFileInfo info)
         {
+            // only need to activate in CreateFile
             this.provider.Activate();
-            var filePath = GetPath(fileName);
+            var result = DokanResult.Success;
+            var filePath = GetPath(fileName);            
+
             if (info.IsDirectory)
             {
-                if (mode == FileMode.Open)
-                    return this.OpenDirectory(filePath, info);
-                if (mode == FileMode.CreateNew)
-                    return this.CreateDirectory(fileName, info);
+                try
+                {
+                    var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(filePath);
+                    var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
+                    var pathExists = pw_proj != null || pw_doc != null;
+                    switch (mode)
+                    {
+                        case FileMode.Open:                            
+                            if (!pathExists)
+                            {
+                                if (pw_proj==null)
+                                {
+                                    return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
+                                        attributes, DokanResult.NotADirectory);
+                                }
 
-                return DokanResult.NotImplemented;
+                                return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
+                                    attributes, DokanResult.PathNotFound);
+                            }
+
+                            break;
+
+                        case FileMode.CreateNew:
+                            if (pw_proj==null)
+                                return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
+                                    attributes, DokanResult.FileExists);
+
+                            this.provider.ProjectHelper.CreateByFullPath(filePath);
+                            break;
+                    }
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
+                        DokanResult.AccessDenied);
+                }
             }
             else
             {
@@ -95,27 +127,11 @@ namespace PWProjectFS.DokanyFS
                 }
                 else
                 {
-                    // 做一些检查，目录是否存在，以及是否是Directory
-                    var dirExists = this.provider.ProjectHelper.IsNamePathExists(filePath);
-                    if (dirExists)
-                    {
-                        pathExists = true;
-                        pathIsDirectory = true;
-                    }
-                    else
-                    {
-                        var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
-                        if (pw_doc != null)
-                        {
-                            pathExists = true;
-                            pathIsDirectory = false;
-                        }
-                        else
-                        {
-                            pathExists = false;
-                            pathIsDirectory = false;
-                        }
-                    }
+                    // 和info.IsDirectory分开，是避免像"\\uwstconfig"跑到pw上查询
+                    var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(filePath);
+                    var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
+                    pathExists = pw_proj != null || pw_doc != null;
+                    pathIsDirectory = pathExists ? pw_proj != null : false;
                 }
 
                 switch (mode)
@@ -131,35 +147,42 @@ namespace PWProjectFS.DokanyFS
                                     && (access & FileAccess.Synchronize) != FileAccess.Synchronize)
                                 {
                                     //It is a DeleteFile request on a directory
-                                    return DokanResult.AccessDenied;
+                                    return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
+                                        attributes, DokanResult.AccessDenied);
                                 }
 
                                 info.IsDirectory = pathIsDirectory;
                                 info.Context = new object();
                                 // must set it to something if you return DokanError.Success
 
-                                return DokanResult.Success;
+                                // must set it to something if you return DokanError.Success
+
+                                return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
+                                    attributes, DokanResult.Success);
                             }
                         }
                         else
                         {
-                            return DokanResult.FileNotFound;
+                            return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
+                                DokanResult.FileNotFound);
                         }
                         break;
 
                     case FileMode.CreateNew:
                         if (pathExists)
                         {
-                            return DokanResult.FileExists;
+                            return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
+                                DokanResult.FileExists);
                         }
                         break;
 
                     case FileMode.Truncate:
                         if (!pathExists)
-                            return DokanResult.FileNotFound;
+                            return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
+                                DokanResult.FileNotFound);
                         break;
                 }
-                var result = DokanResult.Success;
+      
                 try
                 {
                     bool fileCreated = mode == FileMode.CreateNew || mode == FileMode.Create || (!pathExists && mode == FileMode.OpenOrCreate);
@@ -168,12 +191,6 @@ namespace PWProjectFS.DokanyFS
                         FileAttributes new_attributes = attributes;
                         new_attributes |= FileAttributes.Archive; // Files are always created as Archive
                         var pw_doc = this.provider.DocumentHelper.Touch(filePath);
-                        //localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, false);
-                        // 不知道为啥创建下面文件Stream的时候，会抛出ioexception
-                        // touch完会有SetAllocationSize操作，但是下面又有CreateFileContext的操作
-                        // 按说info.Context不应该null
-                        //info.Context = new FileStream(localWorkDirPath, mode,
-                        //    streamAccess, share, 4096, options);
                     }
                     System.IO.FileAccess streamAccess = readAccess ? System.IO.FileAccess.Read : System.IO.FileAccess.ReadWrite;
                     if (mode == System.IO.FileMode.CreateNew && readAccess) streamAccess = System.IO.FileAccess.ReadWrite;
@@ -186,7 +203,6 @@ namespace PWProjectFS.DokanyFS
                     {
                         result = DokanResult.AlreadyExists;
                     }
-                    return result;
                 }
                 catch (UnauthorizedAccessException) // don't have access rights
                 {
@@ -211,13 +227,13 @@ namespace PWProjectFS.DokanyFS
                                 DokanResult.InternalError);
                 }
             }
-                
+            return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
+                result);
         }
 
 
         public NtStatus DeleteFile(string fileName, IDokanFileInfo info)
         {
-            this.provider.Activate();
             var filePath = GetPath(fileName);
             if (this.provider.ProjectHelper.IsNamePathExists(filePath))
             {
@@ -250,40 +266,39 @@ namespace PWProjectFS.DokanyFS
         }
 
         public NtStatus GetFileInformation(
-            string filename,
+            string fileName,
             out FileInformation fileinfo,
             IDokanFileInfo info)
         {            
             // 给个默认值
-            fileinfo = new FileInformation { FileName = filename };
+            fileinfo = new FileInformation { FileName = fileName };
             fileinfo.Attributes = FileAttributes.Directory;
             fileinfo.LastAccessTime = DateTime.Now;
             fileinfo.LastWriteTime = null;
             fileinfo.CreationTime = null;
 
-            if (filename == "\\" || filename.EndsWith("\\uwstconfig"))
+            if (fileName == "\\" || fileName.EndsWith("\\uwstconfig"))
             {
                 return DokanResult.Success;
             }
-            this.provider.Activate();
-            var fPath = this.GetPath(filename);
+            var fPath = this.GetPath(fileName);
             var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(fPath);
             if (pw_doc != null)
             {
                 fileinfo = pw_doc.toFileInformation();
-                return DokanResult.Success;
+                return Trace(nameof(GetFileInformation), fileName, info, DokanResult.Success);
             }
             else
             {
                 var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(fPath);
                 if (pw_proj == null)
                 {
-                    return DokanResult.FileNotFound;
+                    return Trace(nameof(GetFileInformation), fileName, info, info.IsDirectory ? DokanResult.PathNotFound : DokanResult.FileNotFound);
                 }
                 else
                 {
                     fileinfo = pw_proj.toFileInformation();
-                    return DokanResult.Success;
+                    return Trace(nameof(GetFileInformation), fileName, info, DokanResult.Success);
                 }
                 
             }
@@ -296,7 +311,6 @@ namespace PWProjectFS.DokanyFS
             bool replace,
             IDokanFileInfo info)
         {
-            this.provider.Activate();
             var oldpath = GetPath(oldName);
             var newpath = GetPath(newName);
 
@@ -316,7 +330,6 @@ namespace PWProjectFS.DokanyFS
 
             try
             {
-
                 if (!exist)
                 {
                     info.Context = null;
@@ -358,7 +371,6 @@ namespace PWProjectFS.DokanyFS
 
         public NtStatus ReadFile(string fileName, byte[] buffer, out int bytesRead, long offset, IDokanFileInfo info)
         {
-            this.provider.Activate();
             try
             {
                 if (info.Context == null) // memory mapped read
@@ -414,7 +426,7 @@ namespace PWProjectFS.DokanyFS
             {
                 return Trace(nameof(SetEndOfFile), fileName, info, DokanResult.DiskFull,
                     length.ToString(CultureInfo.InvariantCulture));
-            }
+            }            
         }
 
         public NtStatus SetAllocationSize(string fileName, long length, IDokanFileInfo info)
@@ -484,12 +496,6 @@ namespace PWProjectFS.DokanyFS
             }
         }
 
-        public NtStatus Mounted(string mountPoint, IDokanFileInfo info)
-        {
-            return DokanResult.Success;
-        }
-
-
         public NtStatus WriteFile(
             string fileName,
             byte[] buffer,
@@ -497,7 +503,6 @@ namespace PWProjectFS.DokanyFS
             long offset,
             IDokanFileInfo info)
         {
-            this.provider.Activate();
             var append = offset == -1;
             if (info.Context == null)
             {

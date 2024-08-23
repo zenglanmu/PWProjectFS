@@ -155,8 +155,16 @@ namespace PWProjectFS.PWProvider
 
         private List<PWProject> _ReadByParent(int parentProjectId)
         {
+            int projnum = 0;
+            if (parentProjectId > 0)
+            {
+                projnum = dmscli.aaApi_SelectChildProjects(parentProjectId);
+            }
+            else
+            {
+                projnum = dmscli.aaApi_SelectTopLevelProjects();
+            }
             
-            var projnum = dmscli.aaApi_SelectChildProjects(parentProjectId);
             if (projnum == 0)
             {
                 return new List<PWProject>(); // Failed to select properties of all documents. There are no documents in specified project.
