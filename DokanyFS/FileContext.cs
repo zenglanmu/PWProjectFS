@@ -9,6 +9,7 @@ using Microsoft.Win32;
 using static DokanNet.FormatProviders;
 using FileAccess = DokanNet.FileAccess;
 using PWProjectFS.PWProvider;
+using PWProjectFS.PWApiWrapper;
 
 namespace PWProjectFS.DokanyFS
 {
@@ -77,7 +78,7 @@ namespace PWProjectFS.DokanyFS
         public int Read(byte[] buffer, long offset)
         {
             var bytesRead = 0;
-            var localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc);
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
             using (var stream = new FileStream(localWorkDirPath, this.mode, this.access))
             {
                 stream.Position = offset;
@@ -94,7 +95,7 @@ namespace PWProjectFS.DokanyFS
         /// <returns></returns>
         public void Write(byte[] buffer, long offset)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath(true);
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
             using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
             {
                 stream.Position = offset;
@@ -109,7 +110,7 @@ namespace PWProjectFS.DokanyFS
         /// <param name="buffer"></param>
         public void Append(byte[] buffer)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath(true);
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
             using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
             {
                 // Offset of -1 is an APPEND: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
@@ -126,7 +127,7 @@ namespace PWProjectFS.DokanyFS
         /// </summary>
         public void Flush()
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath(true);
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
             using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
             {
                 stream.Flush();
@@ -139,7 +140,7 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void SetLength(long length)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath(true);
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
             using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
             {
                 stream.SetLength(length);
@@ -153,7 +154,7 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void Lock(long offset, long length)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath(true);
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
             using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
             {
                 stream.Lock(offset, length);
@@ -167,7 +168,7 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void Unlock(long offset, long length)
         {
-            var localWorkDirPath = this.GetPWDocLocalWorkPath(true);
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
             using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
             {
                 stream.Unlock(offset, length);
@@ -215,11 +216,47 @@ namespace PWProjectFS.DokanyFS
         /// </summary>
         /// <param name="checkout"></param>
         /// <returns></returns>
-        private string GetPWDocLocalWorkPath(bool checkout=true)
+        private string GetPWDocLocalWorkPath()
         {
             if (this._localWorkDirPath == null)
             {
-                this._localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, checkout);
+                // 只有当access和share都是Read时，才认为是只读打开
+                var checkout = true;
+                if (this.access == System.IO.FileAccess.Read)
+                {
+                    // 再检出share的情况
+                    if(this.share == FileShare.Read)
+                    {
+                        checkout = false;
+                    }
+                }
+                // TODO，不能checkout时但又调用了写打开方式的处理，抛UnauthorizedAccessException好像不对
+                if (checkout && pw_doc.locked && !pw_doc.locked_by_me)
+                {
+                    // 导出或者在别的机器上检出了，但是要读写，则没有权限
+                    throw new IOException("PW文件锁定");
+                }
+                try
+                {
+                    this._localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, checkout);
+                }
+                catch(PWException e)
+                {
+                    if (e.PWErrorId == 58085)
+                    {
+                        // 对于具有最终状态的文档，操作无法执行。,错误码:58085
+                        // 然而也用了读写打开的方式
+                        throw new IOException("文件处于最终状态");
+                    }
+                    else
+                    {
+                        throw e;
+                    }
+
+                    
+                }
+                
+                
             }
             return this._localWorkDirPath;
         }

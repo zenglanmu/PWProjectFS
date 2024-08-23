@@ -28,6 +28,7 @@ namespace PWProjectFS.PWProvider
         public int updated_by { get; set; }
         public long filesize { get; set; }
         public bool locked { get; set; }
+        public bool is_final { get; set; } // 最终状态
         public bool locked_by_me { get; set; }
         public bool is_latest { get; set; }
 
@@ -35,9 +36,14 @@ namespace PWProjectFS.PWProvider
 
         public FileInformation toFileInformation()
         {
+            var Attributes = FileAttributes.Archive;
+            if ((this.locked && !this.locked_by_me) || this.is_final)
+            {
+                Attributes = Attributes | FileAttributes.ReadOnly;
+            }
             var file = new FileInformation
             {
-                Attributes = FileAttributes.Archive,
+                Attributes = Attributes,
                 CreationTime = this.create_time,
                 LastAccessTime = this.update_time,
                 LastWriteTime = this.file_update_time,
@@ -84,6 +90,7 @@ namespace PWProjectFS.PWProvider
             doc.updated_by = dmscli.aaApi_GetDocumentNumericProperty(dmscli.DocumentProperty.UpdaterID, i);
             doc.filesize = (long)dmscli.aaApi_GetDocumentUint64Property(dmscli.DocumentProperty.Size, i);
             doc.locked = dmscli.aaApi_GetDocumentStringProperty(dmscli.DocumentProperty.DMSStatus, i).IndexOf("O") != -1;
+            doc.is_final = dmscli.aaApi_GetDocumentNumericProperty(dmscli.DocumentProperty.HasFinalStatus, i) != 0;
             doc.locked_by_me = dmscli.aaApi_GetDocumentNumericProperty(dmscli.DocumentProperty.IsOutToMe, i) != 0;
             doc.is_latest = dmscli.aaApi_GetDocumentNumericProperty(dmscli.DocumentProperty.OriginalNumber, i) == 0;
             doc.documentType = (DocumentType)dmscli.aaApi_GetDocumentNumericProperty(dmscli.DocumentProperty.ItemType, i);

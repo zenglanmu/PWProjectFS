@@ -20,13 +20,7 @@ namespace PWProjectFS.DokanyFS
                 Console.WriteLine(DokanFormat($"{nameof(Cleanup)}('{fileName}', {info} - entering"));
 #endif
 
-            if (!info.IsDirectory && (info.Context as FileStream) != null)
-            {
-                // 打开文件后的关闭？
-                Console.WriteLine(DokanFormat($"{nameof(CloseFile)}('{fileName}', {info} - entering"));
-            }
-
-            (info.Context as FileStream)?.Dispose();
+            (info.Context as PWFileContext)?.Dispose();
             info.Context = null;
 
             this.provider.Activate();
@@ -59,7 +53,7 @@ namespace PWProjectFS.DokanyFS
             if (info.Context != null)
                 Console.WriteLine(DokanFormat($"{nameof(CloseFile)}('{fileName}', {info} - entering"));
 #endif
-            (info.Context as FileStream)?.Dispose();
+            (info.Context as PWFileContext)?.Dispose();
             info.Context = null;
             Trace(nameof(CloseFile), fileName, info, DokanResult.Success);
         }
@@ -176,6 +170,8 @@ namespace PWProjectFS.DokanyFS
                         var pw_doc = this.provider.DocumentHelper.Touch(filePath);
                         //localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, false);
                         // 不知道为啥创建下面文件Stream的时候，会抛出ioexception
+                        // touch完会有SetAllocationSize操作，但是下面又有CreateFileContext的操作
+                        // 按说info.Context不应该null
                         //info.Context = new FileStream(localWorkDirPath, mode,
                         //    streamAccess, share, 4096, options);
                     }
@@ -381,7 +377,21 @@ namespace PWProjectFS.DokanyFS
                     }
                 }
             }
-            catch (Exception)
+            catch(IOException e)
+            {
+                bytesRead = 0;
+                if (e.Message== "PW文件锁定")
+                {                    
+                    return Trace(nameof(ReadFile), fileName, info, DokanResult.SharingViolation, "0",
+                    offset.ToString(CultureInfo.InvariantCulture));
+                }
+                else
+                {
+                    return Trace(nameof(ReadFile), fileName, info, DokanResult.InvalidParameter, "0",
+                    offset.ToString(CultureInfo.InvariantCulture));
+                }
+            }
+            catch (Exception e)
             {
                 bytesRead = 0;
                 return Trace(nameof(ReadFile), fileName, info, DokanResult.InvalidParameter, "0",
