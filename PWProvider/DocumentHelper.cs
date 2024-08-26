@@ -133,6 +133,12 @@ namespace PWProjectFS.PWProvider
 
         private List<PWDocument> _ReadByParent(int parentProjectId)
         {
+            var docs = new List<PWDocument>();
+            if (parentProjectId == 0)
+            {
+                // 顶层目录是不能放文件的
+                return docs;
+            }
             var docnums = dmscli.aaApi_SelectDocumentsByProjectId(parentProjectId);
             if (docnums == 0)
             {
@@ -146,8 +152,7 @@ namespace PWProjectFS.PWProvider
             {
                 //pass
             }
-
-            var docs = new List<PWDocument>();
+            
             for(int i = 0; i < docnums; i++)
             {
                 var doc = this.PopulateDocumentFromBuffer(i);

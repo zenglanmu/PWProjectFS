@@ -75,15 +75,16 @@ namespace PWProjectFS.DokanyFS
             {
                 try
                 {
-                    var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(filePath);
+                    // 不获取对象改获取id是因为挂载顶层目录情况时没有对象，proejctId为0
+                    var projectId = this.provider.ProjectHelper.GetProjectIdByNamePath(filePath);                    
                     var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
-                    var pathExists = pw_proj != null || pw_doc != null;
+                    var pathExists = projectId >=0 || pw_doc != null;
                     switch (mode)
                     {
                         case FileMode.Open:                            
                             if (!pathExists)
                             {
-                                if (pw_proj==null)
+                                if (projectId <0)
                                 {
                                     return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
                                         attributes, DokanResult.NotADirectory);
@@ -96,7 +97,7 @@ namespace PWProjectFS.DokanyFS
                             break;
 
                         case FileMode.CreateNew:
-                            if (pw_proj==null)
+                            if (projectId >=0)
                                 return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
                                     attributes, DokanResult.FileExists);
 
@@ -128,10 +129,10 @@ namespace PWProjectFS.DokanyFS
                 else
                 {
                     // 和info.IsDirectory分开，是避免像"\\uwstconfig"跑到pw上查询
-                    var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(filePath);
+                    var projectId = this.provider.ProjectHelper.GetProjectIdByNamePath(filePath);
                     var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
-                    pathExists = pw_proj != null || pw_doc != null;
-                    pathIsDirectory = pathExists ? pw_proj != null : false;
+                    pathExists = projectId >= 0 || pw_doc != null;
+                    pathIsDirectory = pathExists ? projectId >= 0 : false;
                 }
 
                 switch (mode)

@@ -256,13 +256,22 @@ namespace PWProjectFS.PWProvider
 
         public int CreateByFullPath(string projFullPath)
         {
-            var parentPath = projFullPath.Substring(0, projFullPath.LastIndexOf("\\"));            
-            var parentProjectId = this.GetProjectIdByNamePath(parentPath);
-            if (parentProjectId == -1)
+            if (projFullPath.Length == 0)
             {
-                // 父目录不存在，好让上层调用方知道
-                return -1;
+                throw new IOException("create new dir on root");
             }
+            var parentProjectId = 0;
+            if (projFullPath.Contains("\\"))
+            {
+                var parentPath = projFullPath.Substring(0, projFullPath.LastIndexOf("\\"));
+                parentProjectId = this.GetProjectIdByNamePath(parentPath);
+                if (parentProjectId == -1)
+                {
+                    // 父目录不存在，好让上层调用方知道
+                    return -1;
+                }
+            }
+
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {                
@@ -352,7 +361,7 @@ namespace PWProjectFS.PWProvider
             lpctstrPath = lpctstrPath.TrimEnd('\\');
             if (string.IsNullOrWhiteSpace(lpctstrPath))
             {
-                return -1;
+                return 0;
             }
             var lastPart = lpctstrPath.Substring(lpctstrPath.LastIndexOf("\\") + 1);
             if (lastPart == "desktop.ini")
