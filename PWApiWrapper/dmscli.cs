@@ -2293,6 +2293,9 @@ namespace PWProjectFS.PWApiWrapper
 		public static extern bool aaApi_GUIDFreeDocument(ref Guid documentGuid, int userId);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
+		public static extern bool aaApi_GUIDPurgeDocumentCopy(ref Guid documentGuid, int userId);
+
+		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]
 		public static extern int aaApi_SelectDocumentsByProjectId(int lProjectId);
 
 		[DllImport("dmscli.dll", CharSet = CharSet.Unicode)]

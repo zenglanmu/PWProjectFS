@@ -182,10 +182,31 @@ namespace PWProjectFS.PWProvider
         private void _Free(string documentId)
         {
             var documentGuid = Guid.Parse(documentId);
-            if (!dmscli.aaApi_GUIDFreeDocument(ref documentGuid, this.m_cache.GetCurrentUserId()))
+            // 是否已被检出，已检出的话先保存
+            bool outToMe = false;
+            var doc = this._Read(documentId);
+            if (!dmscli.aaApi_IsDocumentCheckedOutToMe(doc.projectId, doc.documentId, out outToMe))
             {
                 throw PWException.GetPWLastException();
             }
+            if (outToMe)
+            {
+                if (!dmscli.aaApi_GUIDRefreshDocumentServerCopy(ref documentGuid))
+                {
+                    throw PWException.GetPWLastException();
+                }
+                if (!dmscli.aaApi_GUIDFreeDocument(ref documentGuid, this.m_cache.GetCurrentUserId()))
+                {
+                    throw PWException.GetPWLastException();
+                }
+            }
+            // 本地副本
+            if (!dmscli.aaApi_GUIDPurgeDocumentCopy(ref documentGuid, this.m_cache.GetCurrentUserId()))
+            {
+                throw PWException.GetPWLastException();
+            }
+
+
         }
 
         public void Free(string documentId)
@@ -278,10 +299,32 @@ namespace PWProjectFS.PWProvider
             return pw_doc;
         }        
 
-        public PWDocument Touch(string docFullPath)
+
+        /// <summary>
+        /// 假如路径不存在，创建新文件，否则返回路径里的文件
+        /// </summary>
+        /// <param name="docFullPath"></param>
+        /// <returns></returns>
+        public PWDocument OpenOrCreate(string docFullPath)
         {
+            if (docFullPath.EndsWith("\\"))
+            {
+                // 明显传的是目录的情况
+                return null;
+            }
+            if (!docFullPath.Contains("\\"))
+            {
+                // 没有子路径的情况，显然不是文件
+                return null;
+            }
             lock (this._lock)
             {
+                var pw_doc = this.GetDocumentByNamePath(docFullPath);
+                if (pw_doc != null)
+                {
+                    // if already exist
+                    return pw_doc;
+                }
                 string lpctstrPath = docFullPath.Substring(0, docFullPath.LastIndexOf("\\"));
                 string filename = docFullPath.Substring(docFullPath.LastIndexOf("\\") + 1);
                 var projectId = this.m_projectHelper.GetProjectIdByNamePath(lpctstrPath);
@@ -487,6 +530,11 @@ namespace PWProjectFS.PWProvider
         /// </summary>
         private void _MoveDocument(PWDocument doc, int targetProjectId, string new_name=null)
         {
+            // 移动前先确保文件是保存进服务器，并且取消了占用状态
+            this._Free(doc.id);
+            doc.locked = false;
+            doc.locked_by_me = false;
+
             var pTargetDocumentId = 0; //不覆盖原来的文件，因为如果有冲突的话，上层调用方应该先删除
             var ret = dmscli.aaApi_MoveDocument(
                 doc.projectId,
@@ -526,6 +574,12 @@ namespace PWProjectFS.PWProvider
                 throw new UnauthorizedAccessException("target directory not exists");
             }
             var pw_doc = this.GetDocumentByNamePath(oldpath);
+            if (pw_doc == null)
+            {
+                // 源文件不存在
+                // TODO,要不要特殊处理
+                return;
+            }
             lock (this._lock)
             {             
                 if(oldProjectid == newProjectid){

@@ -39,6 +39,7 @@ namespace PWProjectFS.DokanyFS
                 {
                     var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
                     if (pw_doc!= null){
+                        this.provider.PWDocProcessTracker.Delete(pw_doc.id);
                         this.provider.DocumentHelper.Delete(pw_doc.id);
                     }                    
                 }
@@ -191,12 +192,12 @@ namespace PWProjectFS.DokanyFS
                     {
                         FileAttributes new_attributes = attributes;
                         new_attributes |= FileAttributes.Archive; // Files are always created as Archive
-                        var pw_doc = this.provider.DocumentHelper.Touch(filePath);
+                        var pw_doc = this.provider.DocumentHelper.OpenOrCreate(filePath);
                     }
                     System.IO.FileAccess streamAccess = readAccess ? System.IO.FileAccess.Read : System.IO.FileAccess.ReadWrite;
                     if (mode == System.IO.FileMode.CreateNew && readAccess) streamAccess = System.IO.FileAccess.ReadWrite;
                     // 针对打开？是否应该传检出后的文件路径
-                    info.Context = PWFileContext.CreateFileContext(this.provider, filePath, info.PagingIo, mode,
+                    info.Context = PWFileContext.CreateFileContext(this.provider, filePath, info, mode,
                         readAccess ? System.IO.FileAccess.Read : System.IO.FileAccess.ReadWrite, share, options);
 
                     if (pathExists && (mode == FileMode.OpenOrCreate
@@ -222,10 +223,9 @@ namespace PWProjectFS.DokanyFS
                     return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
                         DokanResult.PathNotFound);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
-                                DokanResult.InternalError);
+                    return Trace(nameof(CreateFile), fileName, info, DokanResult.InternalError, access, share, mode, options, attributes, e.ToString());
                 }
             }
             return Trace(nameof(CreateFile), fileName, info, access, share, mode, options, attributes,
@@ -254,7 +254,7 @@ namespace PWProjectFS.DokanyFS
         public NtStatus FlushFileBuffers(
             string fileName,
             IDokanFileInfo info)
-        {
+        {            
             try
             {
                 ((PWFileContext)(info.Context)).Flush();
@@ -376,7 +376,7 @@ namespace PWProjectFS.DokanyFS
             {
                 if (info.Context == null) // memory mapped read
                 {
-                    using (var mx = PWFileContext.CreateFileContext(this.provider, GetPath(fileName), info.PagingIo, FileMode.Open, System.IO.FileAccess.Read))
+                    using (var mx = PWFileContext.CreateFileContext(this.provider, GetPath(fileName), info, FileMode.Open, System.IO.FileAccess.Read))
                     {
                         bytesRead = mx.Read(buffer, offset);
                     }
@@ -507,7 +507,7 @@ namespace PWProjectFS.DokanyFS
             var append = offset == -1;
             if (info.Context == null)
             {
-                using (var mx = PWFileContext.CreateFileContext(this.provider, GetPath(fileName), info.PagingIo, append ? FileMode.Append : FileMode.Open, System.IO.FileAccess.Write))
+                using (var mx = PWFileContext.CreateFileContext(this.provider, GetPath(fileName), info, append ? FileMode.Append : FileMode.Open, System.IO.FileAccess.Write))
                 {
                     if (!append) // Offset of -1 is an APPEND: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
                     {

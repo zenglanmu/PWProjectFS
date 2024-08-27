@@ -32,11 +32,13 @@ namespace PWProjectFS.UI
             this.btnLogin = new System.Windows.Forms.Button();
             this.btnMount = new System.Windows.Forms.Button();
             this.btnClearCache = new System.Windows.Forms.Button();
+            this.backgroundMountWorker = new System.ComponentModel.BackgroundWorker();
+            this.btnUnMount = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnLogin
             // 
-            this.btnLogin.Location = new System.Drawing.Point(140, 114);
+            this.btnLogin.Location = new System.Drawing.Point(140, 39);
             this.btnLogin.Name = "btnLogin";
             this.btnLogin.Size = new System.Drawing.Size(216, 49);
             this.btnLogin.TabIndex = 0;
@@ -46,7 +48,7 @@ namespace PWProjectFS.UI
             // 
             // btnMount
             // 
-            this.btnMount.Location = new System.Drawing.Point(140, 220);
+            this.btnMount.Location = new System.Drawing.Point(140, 125);
             this.btnMount.Name = "btnMount";
             this.btnMount.Size = new System.Drawing.Size(216, 49);
             this.btnMount.TabIndex = 1;
@@ -56,7 +58,7 @@ namespace PWProjectFS.UI
             // 
             // btnClearCache
             // 
-            this.btnClearCache.Location = new System.Drawing.Point(140, 320);
+            this.btnClearCache.Location = new System.Drawing.Point(140, 312);
             this.btnClearCache.Name = "btnClearCache";
             this.btnClearCache.Size = new System.Drawing.Size(216, 49);
             this.btnClearCache.TabIndex = 2;
@@ -64,11 +66,26 @@ namespace PWProjectFS.UI
             this.btnClearCache.UseVisualStyleBackColor = true;
             this.btnClearCache.Click += new System.EventHandler(this.btnClearCache_Click);
             // 
+            // backgroundMountWorker
+            // 
+            this.backgroundMountWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundMountWorker_DoWork);
+            // 
+            // btnUnMount
+            // 
+            this.btnUnMount.Location = new System.Drawing.Point(140, 211);
+            this.btnUnMount.Name = "btnUnMount";
+            this.btnUnMount.Size = new System.Drawing.Size(216, 49);
+            this.btnUnMount.TabIndex = 3;
+            this.btnUnMount.Text = "卸载目录";
+            this.btnUnMount.UseVisualStyleBackColor = true;
+            this.btnUnMount.Click += new System.EventHandler(this.btnUnMount_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.btnUnMount);
             this.Controls.Add(this.btnClearCache);
             this.Controls.Add(this.btnMount);
             this.Controls.Add(this.btnLogin);
@@ -84,5 +101,7 @@ namespace PWProjectFS.UI
         private System.Windows.Forms.Button btnLogin;
         private System.Windows.Forms.Button btnMount;
         private System.Windows.Forms.Button btnClearCache;
+        private System.ComponentModel.BackgroundWorker backgroundMountWorker;
+        private System.Windows.Forms.Button btnUnMount;
     }
 }

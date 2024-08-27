@@ -1,13 +1,7 @@
 ﻿using System;
 using System.IO;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 using DokanNet;
-using Microsoft.Win32;
-using static DokanNet.FormatProviders;
-using FileAccess = DokanNet.FileAccess;
 using PWProjectFS.PWProvider;
 using PWProjectFS.PWApiWrapper;
 
@@ -20,41 +14,60 @@ namespace PWProjectFS.DokanyFS
     public class PWFileContext : IDisposable
     {
         private bool _disposed = false;
+
+        /// <summary>
+        /// 是不是每次执行写入相关操作时，对本地副本io完后，更新服务器副本
+        /// </summary>
+        private bool updateServerCopyOnWrite = true;
+        
         private PWDataSourceProvider provider { get; set; }
+
         /// <summary>
         /// 关联的pw文件
         /// </summary>
         public PWDocument pw_doc { get; private set; }
 
         /// <summary>
-        /// 从info里获取是否是按照pagingIo方式读取，关系到计算GetNumOfBytesToCopy
+        /// 获取本地副本时，是用检出的方式还是复制出的方式
         /// </summary>
-        private bool isPagingIo { get; set; }
+        private bool isDocCheckOut = true;
+
+        /// <summary>
+        /// 是否有explorer.exe，即资源管理器打开
+        /// </summary>
+        private bool OpenByExplorer = false;
+
+        /// <summary>
+        /// 对应的info
+        /// </summary>
+        private IDokanFileInfo info { get; set; }
 
         private FileMode mode { get; set; }
         private System.IO.FileAccess access { get; set; }
         private FileShare share { get; set; }
         private FileOptions options { get; set; }
 
-        public PWFileContext(PWDataSourceProvider provider, PWDocument pw_doc, bool isPagingIo, FileMode mode, System.IO.FileAccess access, FileShare share, FileOptions options)
+        public PWFileContext(PWDataSourceProvider provider, PWDocument pw_doc, IDokanFileInfo info, FileMode mode, System.IO.FileAccess access, FileShare share, FileOptions options)
         {
             this.provider = provider;
             this.pw_doc = pw_doc;
-            this.isPagingIo = isPagingIo;
+            this.info = info;
             this.mode = mode;
             this.access = access;
             this.share = share;
             this.options = options;
+            this.updateServerCopyOnWrite = true;
+            this.OpenByExplorer = false;
         }
 
-        public static PWFileContext CreateFileContext(PWDataSourceProvider provider, string docFullPath, bool isPagingIo, FileMode mode, System.IO.FileAccess access, FileShare share = FileShare.None, FileOptions options = FileOptions.None)
+        public static PWFileContext CreateFileContext(PWDataSourceProvider provider, string docFullPath, IDokanFileInfo info, FileMode mode, System.IO.FileAccess access, FileShare share = FileShare.None, FileOptions options = FileOptions.None)
         {
             var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
             // 即使pw_doc为空也得返回。后面读取buffer的操作再处理
             return new PWFileContext(
                 provider,
                 pw_doc,
-                isPagingIo,
+                info,
                 mode,
                 access,
                 share,
@@ -105,6 +118,7 @@ namespace PWProjectFS.DokanyFS
                         var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
                         stream.Write(buffer, 0, bytesToCopy);
                     }
+                    this.UpdateServerCopy(pw_doc);
                 }
             }            
         }
@@ -128,13 +142,13 @@ namespace PWProjectFS.DokanyFS
                         var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
                         stream.Write(buffer, 0, bytesToCopy);
                     }
+                    this.UpdateServerCopy(pw_doc);
                 }
             }            
         }
 
         /// <summary>
         /// Flush the internal buffer, called before file closes
-        /// TODO,是否要更新服务器副本，检入文件
         /// </summary>
         public void Flush()
         {
@@ -147,6 +161,7 @@ namespace PWProjectFS.DokanyFS
                     {
                         stream.Flush();
                     }
+                    this.UpdateServerCopy(pw_doc);
                 }
             }
             
@@ -167,6 +182,7 @@ namespace PWProjectFS.DokanyFS
                     {
                         stream.SetLength(length);
                     }
+                    this.UpdateServerCopy(pw_doc);
                 }
             }            
         }
@@ -214,7 +230,7 @@ namespace PWProjectFS.DokanyFS
 
         protected Int32 GetNumOfBytesToCopy(Int32 bufferLength, long offset, FileStream stream)
         {
-            if (this.isPagingIo)
+            if (this.info.PagingIo)
             {
                 var longDistanceToEnd = stream.Length - offset;
                 var isDistanceToEndMoreThanInt = longDistanceToEnd > Int32.MaxValue;
@@ -236,33 +252,47 @@ namespace PWProjectFS.DokanyFS
         /// <returns></returns>
         private string GetPWDocLocalWorkPath()
         {
-            if (this._localWorkDirPath == null)
+            if (this.share.HasFlag(FileShare.Delete))
             {
-                if (this.share.HasFlag(FileShare.Delete))
+                // 如果是删除的情况，不应该去检出
+                return null;
+            }
+            // 只有当access和share都是Read时，才认为是只读打开
+            this.isDocCheckOut = true;
+            if (this.access == System.IO.FileAccess.Read)
+            {
+                // 再检查share的情况，如果是要删除，自然不用checkout            
+                if (this.share == FileShare.Read)
                 {
-                    // 如果是删除的情况，不应该去检出
-                    return null;
+                    this.isDocCheckOut = false;
                 }
-                // 只有当access和share都是Read时，才认为是只读打开
-                var checkout = true;
-                if (this.access == System.IO.FileAccess.Read)
-                {
-                    // 再检查share的情况，如果是要删除，自然不用checkout            
-                    if(this.share == FileShare.Read )
-                    {
-                        checkout = false;
-                    }
-                }
+            }
+            
+            if(this.isDocCheckOut && !pw_doc.locked)
+            {
+                // 可能前面操作中文件释放了，例如进行了移动操作，但又重新写入，则要重新检出
+                this._localWorkDirPath = null;
+            }
+
+
+            if (this._localWorkDirPath == null)
+            {                
                 // TODO，不能checkout时但又调用了写打开方式的处理，抛UnauthorizedAccessException好像不对
-                if (checkout && pw_doc.locked && !pw_doc.locked_by_me)
+                if (this.isDocCheckOut && pw_doc.locked && !pw_doc.locked_by_me)
                 {
                     // 导出或者在别的机器上检出了，但是要读写，则没有权限
                     throw new IOException("PW文件锁定");
                 }
                 try
                 {
-                    checkout = true; // 先强制按检出弄，测试写入的功能
-                    this._localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, checkout);
+                    this._localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, this.isDocCheckOut);
+                    // 记录打开文件的进程id，以便进行资源回收
+                    // 但是对于文件资源管理器，该对象的生命周期结束就释放文件
+                    if (!this.IsOpenByExplorer())
+                    {
+                        this.provider.PWDocProcessTracker.Update(pw_doc.id, this.info.ProcessId);
+                    }
+                    
                 }
                 catch(PWException e)
                 {
@@ -282,6 +312,51 @@ namespace PWProjectFS.DokanyFS
             return this._localWorkDirPath;
         }
 
+        private void UpdateServerCopy(PWDocument doc)
+        {
+            if (this.updateServerCopyOnWrite)
+            {
+                this.provider.DocumentHelper.UpdateCheckOutDocument(doc);
+            }
+        }
+
+
+        /// <summary>
+        /// 针对explorer发起的文件请求，例如复制文件，在生命周期内explorer.exe是常驻的
+        /// 因此不能走跟踪进程关闭，释放文件占用的方式。
+        /// 同时explorer资源管理器不会修改文件内容，在一个请求里释放也问题不大
+        /// </summary>
+        /// <returns></returns>
+        private bool IsOpenByExplorer()
+        {
+            try
+            {
+                var process = Process.GetProcessById(this.info.ProcessId);
+                if (process != null && process.ProcessName == "explorer")
+                {
+                    this.OpenByExplorer = true;
+                    return true;
+                }
+                else
+                {
+                    this.OpenByExplorer = false;
+                    return false;
+                }
+            }
+            catch (ArgumentException)
+            {
+                // 进程不存在
+                this.OpenByExplorer = false;
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                // 没有权限访问的进程
+                this.OpenByExplorer = false;
+                return false;
+            }
+            
+        }
         // Implement IDisposable
         public void Dispose()
         {
@@ -296,9 +371,9 @@ namespace PWProjectFS.DokanyFS
                 if (disposing)
                 {
                     // TODO, 看要不要怎么做释放资源，比如是不是更新保存的副本，释放pw文件占用啥的
-                    if(this.pw_doc.locked && this.pw_doc.locked_by_me)
+                    if (this.OpenByExplorer)
                     {
-                        //this.provider.DocumentHelper.Free(pw_doc.id);
+                        this.provider.DocumentHelper.Free(pw_doc.id);
                     }
                 }
                 _disposed = true;

@@ -7,6 +7,7 @@ using Microsoft.Win32;
 using System.IO;
 using PWProjectFS.Log;
 using PWProjectFS.PWApiWrapper;
+using System.Threading.Tasks;
 
 namespace PWProjectFS.PWProvider
 {
@@ -31,7 +32,10 @@ namespace PWProjectFS.PWProvider
 		private readonly DocumentHelper m_documentHelper;
 		public DocumentHelper DocumentHelper => m_documentHelper;
 
-		
+		private readonly PWDocProcessTracker m_docProcessTracker;
+		public PWDocProcessTracker PWDocProcessTracker => m_docProcessTracker;
+
+		private CancellationTokenSource cancelProcessScanSource = null;
 
 		public PWDataSourceProvider()
         {
@@ -40,6 +44,10 @@ namespace PWProjectFS.PWProvider
 			this.m_cache = new PWResourceCache(60);
 			this.m_projectHelper = new ProjectHelper(this._lock, this.m_cache);
 			this.m_documentHelper = new DocumentHelper(this._lock, this.m_cache, this.m_projectHelper);
+
+			this.cancelProcessScanSource = new CancellationTokenSource();
+			// 按500间隔来更新
+			this.m_docProcessTracker = new PWDocProcessTracker(500, this, this.cancelProcessScanSource.Token);
 
 		}
 
@@ -126,9 +134,21 @@ namespace PWProjectFS.PWProvider
 			return !isDisconnected;
 		}
 
+
+		/// <summary>
+		/// 清空缓存
+		/// </summary>
 		public void InvalidateCache()
         {
 			this.m_cache.Invalidate();
+        }
+
+		/// <summary>
+		/// 终止扫描打开文件的进程，在退出的时候使用
+		/// </summary>
+		public void CancelProcessScan()
+        {
+			this.cancelProcessScanSource.Cancel();
         }
 	}
 

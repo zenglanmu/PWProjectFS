@@ -3,6 +3,7 @@ using DokanNet.Logging;
 using PWProjectFS.PWProvider;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using static DokanNet.FormatProviders;
 using FileAccess = DokanNet.FileAccess;
 
@@ -58,6 +59,14 @@ namespace PWProjectFS.DokanyFS
             return result;
         }
 
+
+
+        /// <summary>
+        /// wrapperred mount operation
+        /// </summary>
+        /// <param name="projectno"></param>
+        /// <param name="mountPath"></param>
+        /// <param name="provider"></param>
         public static void Mount(int projectno, string mountPath, PWDataSourceProvider provider)
         {
             using (var dokanLogger = new ConsoleLogger("[ProjectWise] "))
@@ -68,18 +77,23 @@ namespace PWProjectFS.DokanyFS
                         .ConfigureLogger(() => dokanLogger)
                         .ConfigureOptions(options =>
                         {
+                            options.Options = DokanOptions.UserModeLock | DokanOptions.CaseSensitive;
                             //options.Options = DokanOptions.DebugMode | DokanOptions.EnableNotificationAPI;
 #if DEBUG
-                            options.Options = DokanOptions.DebugMode | DokanOptions.RemovableDrive;
-#else
-                            options.Options = DokanOptions.RemovableDrive;
+                            options.Options = options.Options | DokanOptions.DebugMode;
 #endif
                             options.MountPoint = mountPath;
                         });
                 using (var dokanInstance = dokanBuilder.Build(fs))
                 {
-                    var task = dokanInstance.WaitForFileSystemClosedAsync(uint.MaxValue);
-                    task.Wait();
+                    var mountTask = dokanInstance.WaitForFileSystemClosedAsync(uint.MaxValue)
+                        .ContinueWith(t=> { 
+                            provider.CancelProcessScan(); 
+                        });
+                    var scanProcessTask = provider.PWDocProcessTracker.ContinousScan();
+                    // 两个任务同时后台进行，等待两个任务都完成。理论上不mount时，scanProcessTask也会自动退出
+                    var allTasks = Task.WhenAll(mountTask, scanProcessTask);
+                    allTasks.Wait();
                 }
             }
         }

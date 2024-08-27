@@ -16,6 +16,9 @@ namespace PWProjectFS.UI
     public partial class Main : Form
     {
         private PWDataSourceProvider provider;
+        private int PWProjectId;
+        private string localMountPath;
+
         public Main()
         {
             InitializeComponent();
@@ -23,19 +26,22 @@ namespace PWProjectFS.UI
 
         private void btnLogin_Click(object sender, EventArgs e)
         {
-            provider = new PWDataSourceProvider();
-            provider.Initialize();
-            provider.Login();            
+            this.provider = new PWDataSourceProvider();
+            this.provider.Initialize();
+            this.provider.Login();            
         }
 
         private void btnMount_Click(object sender, EventArgs e)
         {
-            if(provider!=null && provider.IsOpen())
+            if(this.provider !=null && this.provider.IsOpen())
             {
-                var projectno = provider.ProjectHelper.ShowSelectProjectDlg();
-                string mountPath = @"N:\";
-                PWFSOperations.Mount(projectno, mountPath, provider);
-                    
+                this.PWProjectId = this.provider.ProjectHelper.ShowSelectProjectDlg();
+                if (this.PWProjectId >= 0)
+                {
+                    this.localMountPath = @"N:\";
+                    // 放后台不卡主线程
+                    this.backgroundMountWorker.RunWorkerAsync();
+                }                
             }
             
         }
@@ -51,6 +57,16 @@ namespace PWProjectFS.UI
             {
                 this.provider.InvalidateCache();
             }
+        }
+
+        private void backgroundMountWorker_DoWork(object sender, DoWorkEventArgs e)
+        {            
+            PWFSOperations.Mount(this.PWProjectId, this.localMountPath, this.provider);
+        }
+
+        private void btnUnMount_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

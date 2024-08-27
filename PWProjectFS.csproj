@@ -77,6 +77,7 @@
     <Compile Include="PWProvider\DocumentHelper.cs" />
     <Compile Include="PWProvider\ProjectHelper.cs" />
     <Compile Include="PWProvider\PWDataSourceProvider.cs" />
+    <Compile Include="PWProvider\ProcessTracker.cs" />
     <Compile Include="UI\Main.cs">
       <SubType>Form</SubType>
     </Compile>
