@@ -270,7 +270,8 @@ namespace PWProjectFS.DokanyFS
             string fileName,
             out FileInformation fileinfo,
             IDokanFileInfo info)
-        {            
+        {
+            this.provider.Activate();
             // 给个默认值
             fileinfo = new FileInformation { FileName = fileName };
             fileinfo.Attributes = FileAttributes.Directory;
@@ -370,6 +371,19 @@ namespace PWProjectFS.DokanyFS
                 replace.ToString(CultureInfo.InvariantCulture));
         }
 
+        /// <summary>
+        /// ReadFile callback on the file previously opened in <see cref="CreateFile"/>.
+        /// It can be called by different thread at the same time,
+        /// therefor the read has to be thread safe.
+        /// </summary>
+        /// <param name="fileName">File path requested by the Kernel on the FileSystem.</param>
+        /// <param name="buffer">Read buffer that has to be fill with the read result.
+        /// The buffer size depend of the read size requested by the kernel.</param>
+        /// <param name="bytesRead">Total number of bytes that has been read.</param>
+        /// <param name="offset">Offset from where the read has to be proceed.</param>
+        /// <param name="info">An <see cref="IDokanFileInfo"/> with information about the file or directory.</param>
+        /// <returns><see cref="NtStatus"/> or <see cref="DokanResult"/> appropriate to the request result.</returns>
+        /// <seealso cref="WriteFile"/>
         public NtStatus ReadFile(string fileName, byte[] buffer, out int bytesRead, long offset, IDokanFileInfo info)
         {
             try

@@ -23,9 +23,9 @@ namespace PWProjectFS.DokanyFS
         private PWDataSourceProvider provider { get; set; }
 
         /// <summary>
-        /// 关联的pw文件
+        /// 文件在pw上的完整路径
         /// </summary>
-        public PWDocument pw_doc { get; private set; }
+        private string docFullPath { get;  set; }
 
         /// <summary>
         /// 获取本地副本时，是用检出的方式还是复制出的方式
@@ -47,10 +47,10 @@ namespace PWProjectFS.DokanyFS
         private FileShare share { get; set; }
         private FileOptions options { get; set; }
 
-        public PWFileContext(PWDataSourceProvider provider, PWDocument pw_doc, IDokanFileInfo info, FileMode mode, System.IO.FileAccess access, FileShare share, FileOptions options)
+        public PWFileContext(PWDataSourceProvider provider, string docFullPath, IDokanFileInfo info, FileMode mode, System.IO.FileAccess access, FileShare share, FileOptions options)
         {
             this.provider = provider;
-            this.pw_doc = pw_doc;
+            this.docFullPath = docFullPath;
             this.info = info;
             this.mode = mode;
             this.access = access;
@@ -62,11 +62,12 @@ namespace PWProjectFS.DokanyFS
 
         public static PWFileContext CreateFileContext(PWDataSourceProvider provider, string docFullPath, IDokanFileInfo info, FileMode mode, System.IO.FileAccess access, FileShare share = FileShare.None, FileOptions options = FileOptions.None)
         {
-            var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
-            // 即使pw_doc为空也得返回。后面读取buffer的操作再处理
+            // 原来是创建时获取文件对象。但是在多线程环境下，可能原来路径上文件被别的进程删除
+            // 所以每次做文件读取写入等操作时重新获取
+            // var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
             return new PWFileContext(
                 provider,
-                pw_doc,
+                docFullPath,
                 info,
                 mode,
                 access,
@@ -84,18 +85,15 @@ namespace PWProjectFS.DokanyFS
         public int Read(byte[] buffer, long offset)
         {
             var bytesRead = 0;
-            if (pw_doc != null)
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
+            if (localWorkDirPath != null)
             {
-                var localWorkDirPath = this.GetPWDocLocalWorkPath();
-                if (localWorkDirPath != null)
+                using (var stream = new FileStream(localWorkDirPath, this.mode, this.access))
                 {
-                    using (var stream = new FileStream(localWorkDirPath, this.mode, this.access))
-                    {
-                        stream.Position = offset;
-                        bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    }
-                }                
-            }            
+                    stream.Position = offset;
+                    bytesRead = stream.Read(buffer, 0, buffer.Length);
+                }
+            }
             return bytesRead;
         }
 
@@ -107,20 +105,18 @@ namespace PWProjectFS.DokanyFS
         /// <returns></returns>
         public void Write(byte[] buffer, long offset)
         {
-            if (pw_doc != null)
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
+            if (localWorkDirPath != null)
             {
-                var localWorkDirPath = this.GetPWDocLocalWorkPath();
-                if (localWorkDirPath != null)
+                using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
                 {
-                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
-                    {
-                        stream.Position = offset;
-                        var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
-                        stream.Write(buffer, 0, bytesToCopy);
-                    }
-                    this.UpdateServerCopy(pw_doc);
+                    stream.Position = offset;
+                    var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
+                    //var bytesToCopy = buffer.Length;
+                    stream.Write(buffer, 0, bytesToCopy);
                 }
-            }            
+                this.UpdateServerCopy();
+            }
         }
 
         /// <summary>
@@ -129,22 +125,20 @@ namespace PWProjectFS.DokanyFS
         /// <param name="buffer"></param>
         public void Append(byte[] buffer)
         {
-            if (pw_doc != null)
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
+            if (localWorkDirPath != null)
             {
-                var localWorkDirPath = this.GetPWDocLocalWorkPath();
-                if (localWorkDirPath != null)
+                using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
                 {
-                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
-                    {
-                        // Offset of -1 is an APPEND: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
-                        var offset = -1;
-                        stream.Position = offset;
-                        var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
-                        stream.Write(buffer, 0, bytesToCopy);
-                    }
-                    this.UpdateServerCopy(pw_doc);
+                    // Offset of -1 is an APPEND: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
+                    var offset = -1;
+                    stream.Position = offset;
+                    var bytesToCopy = GetNumOfBytesToCopy(buffer.Length, offset, stream);
+                    //var bytesToCopy = buffer.Length;
+                    stream.Write(buffer, 0, bytesToCopy);
                 }
-            }            
+                this.UpdateServerCopy();
+            }
         }
 
         /// <summary>
@@ -152,19 +146,15 @@ namespace PWProjectFS.DokanyFS
         /// </summary>
         public void Flush()
         {
-            if (pw_doc != null)
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
+            if (localWorkDirPath != null)
             {
-                var localWorkDirPath = this.GetPWDocLocalWorkPath();
-                if (localWorkDirPath != null)
+                using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
                 {
-                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
-                    {
-                        stream.Flush();
-                    }
-                    this.UpdateServerCopy(pw_doc);
+                    stream.Flush();
                 }
+                this.UpdateServerCopy();
             }
-            
         }
 
         /// <summary>
@@ -173,18 +163,15 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void SetLength(long length)
         {
-            if (pw_doc != null)
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
+            if (localWorkDirPath != null)
             {
-                var localWorkDirPath = this.GetPWDocLocalWorkPath();
-                if (localWorkDirPath != null)
+                using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
                 {
-                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
-                    {
-                        stream.SetLength(length);
-                    }
-                    this.UpdateServerCopy(pw_doc);
+                    stream.SetLength(length);
                 }
-            }            
+                this.UpdateServerCopy();
+            }
         }
 
         /// <summary>
@@ -194,18 +181,14 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void Lock(long offset, long length)
         {
-            if (pw_doc != null)
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
+            if (localWorkDirPath != null)
             {
-                var localWorkDirPath = this.GetPWDocLocalWorkPath();
-                if (localWorkDirPath != null)
+                using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
                 {
-                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
-                    {
-                        stream.Lock(offset, length);
-                    }
+                    stream.Lock(offset, length);
                 }
-            }
-            
+            }            
         }
 
         /// <summary>
@@ -215,17 +198,14 @@ namespace PWProjectFS.DokanyFS
         /// <param name="length"></param>
         public void Unlock(long offset, long length)
         {
-            if (pw_doc != null)
+            var localWorkDirPath = this.GetPWDocLocalWorkPath();
+            if (localWorkDirPath != null)
             {
-                var localWorkDirPath = this.GetPWDocLocalWorkPath();
-                if (localWorkDirPath != null)
+                using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
                 {
-                    using (var stream = new FileStream(localWorkDirPath, FileMode.Open, System.IO.FileAccess.Write))
-                    {
-                        stream.Unlock(offset, length);
-                    }
+                    stream.Unlock(offset, length);
                 }
-            }            
+            }
         }        
 
         protected Int32 GetNumOfBytesToCopy(Int32 bufferLength, long offset, FileStream stream)
@@ -252,12 +232,18 @@ namespace PWProjectFS.DokanyFS
         /// <returns></returns>
         private string GetPWDocLocalWorkPath()
         {
-            if (this.share.HasFlag(FileShare.Delete))
+            var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
+            if (pw_doc == null)
             {
-                // 如果是删除的情况，不应该去检出
                 return null;
             }
-            // 只有当access和share都是Read时，才认为是只读打开
+            //if (this.share.HasFlag(FileShare.Delete))
+            //{
+            // 如果是删除的情况，不应该去检出
+            // 但是从文件flag里无法判断。所以还是不能这样操作
+            //    return null;
+            //}
+
             this.isDocCheckOut = true;
             if (this.access == System.IO.FileAccess.Read)
             {
@@ -268,7 +254,7 @@ namespace PWProjectFS.DokanyFS
                 }
             }
             
-            if(this.isDocCheckOut && !pw_doc.locked)
+            if (this.isDocCheckOut && !pw_doc.locked)
             {
                 // 可能前面操作中文件释放了，例如进行了移动操作，但又重新写入，则要重新检出
                 this._localWorkDirPath = null;
@@ -312,11 +298,15 @@ namespace PWProjectFS.DokanyFS
             return this._localWorkDirPath;
         }
 
-        private void UpdateServerCopy(PWDocument doc)
+        private void UpdateServerCopy()
         {
             if (this.updateServerCopyOnWrite)
             {
-                this.provider.DocumentHelper.UpdateCheckOutDocument(doc);
+                var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
+                if (pw_doc != null)
+                {
+                    this.provider.DocumentHelper.UpdateCheckOutDocument(pw_doc);
+                }                
             }
         }
 
@@ -373,7 +363,12 @@ namespace PWProjectFS.DokanyFS
                     // TODO, 看要不要怎么做释放资源，比如是不是更新保存的副本，释放pw文件占用啥的
                     if (this.OpenByExplorer)
                     {
-                        this.provider.DocumentHelper.Free(pw_doc.id);
+                        var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
+                        if (pw_doc != null)
+                        {
+                            this.provider.DocumentHelper.Free(pw_doc.id);
+                        }
+                        
                     }
                 }
                 _disposed = true;

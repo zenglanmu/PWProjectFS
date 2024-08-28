@@ -179,6 +179,11 @@ namespace PWProjectFS.PWProvider
             }
         }
 
+
+        /// <summary>
+        /// 解除文件占用，free之前会先检入文档
+        /// </summary>
+        /// <param name="documentId"></param>
         private void _Free(string documentId)
         {
             var documentGuid = Guid.Parse(documentId);
@@ -529,12 +534,7 @@ namespace PWProjectFS.PWProvider
         /// new_name为null则是只移动
         /// </summary>
         private void _MoveDocument(PWDocument doc, int targetProjectId, string new_name=null)
-        {
-            // 移动前先确保文件是保存进服务器，并且取消了占用状态
-            this._Free(doc.id);
-            doc.locked = false;
-            doc.locked_by_me = false;
-
+        { 
             var pTargetDocumentId = 0; //不覆盖原来的文件，因为如果有冲突的话，上层调用方应该先删除
             var ret = dmscli.aaApi_MoveDocument(
                 doc.projectId,
@@ -562,8 +562,9 @@ namespace PWProjectFS.PWProvider
         /// <param name="newpath"></param>
         public void MoveFile(string oldpath, string newpath)
         {
+            string oldProjectPath = newpath.Substring(0, oldpath.LastIndexOf("\\"));
             string oldFilename = oldpath.Substring(oldpath.LastIndexOf("\\") + 1);
-            var oldProjectid = this.m_projectHelper.GetProjectIdByNamePath(oldpath);
+            var oldProjectid = this.m_projectHelper.GetProjectIdByNamePath(oldProjectPath);
 
             string newProjectPath = newpath.Substring(0, newpath.LastIndexOf("\\"));
             string newFilename = newpath.Substring(newpath.LastIndexOf("\\") + 1);
@@ -579,6 +580,12 @@ namespace PWProjectFS.PWProvider
                 // 源文件不存在
                 // TODO,要不要特殊处理
                 return;
+            }
+
+            if(pw_doc.locked && pw_doc.locked_by_me)
+            {
+                // 占用的文件无法移动
+                this.Free(pw_doc.id);
             }
             lock (this._lock)
             {             
@@ -604,6 +611,7 @@ namespace PWProjectFS.PWProvider
 
                 // 清空缓存，防止移动后老的还在
                 var cache_key = $"GetDocumentByNameAndProjectId:{oldProjectid}-{oldFilename}";
+                // TODO,确认移动后原始路径的缓存清空
                 this.m_cache.Delete(cache_key);
                 // 以及清空在目的地的缓存，防止前面判断是否存在时获取过
                 cache_key = $"GetDocumentByNameAndProjectId:{newProjectid}-{newFilename}";
