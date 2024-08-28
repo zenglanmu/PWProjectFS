@@ -305,7 +305,12 @@ namespace PWProjectFS.DokanyFS
                 var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
                 if (pw_doc != null)
                 {
-                    this.provider.DocumentHelper.UpdateCheckOutDocument(pw_doc);
+                    if (this._localWorkDirPath != null)
+                    {
+                        // 更新文件大小的缓存
+                        pw_doc.filesize = new System.IO.FileInfo(this._localWorkDirPath).Length;
+                    }
+                    this.provider.DocumentHelper.UpdateCheckOutDocument(pw_doc);                    
                 }                
             }
         }
