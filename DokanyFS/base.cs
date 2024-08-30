@@ -98,7 +98,7 @@ namespace PWProjectFS.DokanyFS
 #endif
                             options.MountPoint = mountPath;
                         });
-                using (var dokanInstance = dokanBuilder.Build(fs))
+                using (DokanInstance dokanInstance = dokanBuilder.Build(fs))
                 {
                     var mountTask = dokanInstance.WaitForFileSystemClosedAsync(uint.MaxValue)
                         .ContinueWith(t=> { 

@@ -29,16 +29,21 @@ namespace PWProjectFS.UI
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main));
             this.btnLogin = new System.Windows.Forms.Button();
             this.btnMount = new System.Windows.Forms.Button();
             this.btnClearCache = new System.Windows.Forms.Button();
             this.backgroundMountWorker = new System.ComponentModel.BackgroundWorker();
-            this.btnUnMount = new System.Windows.Forms.Button();
+            this.notes = new System.Windows.Forms.TextBox();
+            this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.tableLayoutPanel1.SuspendLayout();
+            this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // btnLogin
             // 
-            this.btnLogin.Location = new System.Drawing.Point(140, 39);
+            this.btnLogin.Location = new System.Drawing.Point(20, 18);
             this.btnLogin.Name = "btnLogin";
             this.btnLogin.Size = new System.Drawing.Size(216, 49);
             this.btnLogin.TabIndex = 0;
@@ -48,7 +53,7 @@ namespace PWProjectFS.UI
             // 
             // btnMount
             // 
-            this.btnMount.Location = new System.Drawing.Point(140, 125);
+            this.btnMount.Location = new System.Drawing.Point(20, 93);
             this.btnMount.Name = "btnMount";
             this.btnMount.Size = new System.Drawing.Size(216, 49);
             this.btnMount.TabIndex = 1;
@@ -58,7 +63,7 @@ namespace PWProjectFS.UI
             // 
             // btnClearCache
             // 
-            this.btnClearCache.Location = new System.Drawing.Point(140, 312);
+            this.btnClearCache.Location = new System.Drawing.Point(20, 164);
             this.btnClearCache.Name = "btnClearCache";
             this.btnClearCache.Size = new System.Drawing.Size(216, 49);
             this.btnClearCache.TabIndex = 2;
@@ -70,28 +75,56 @@ namespace PWProjectFS.UI
             // 
             this.backgroundMountWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundMountWorker_DoWork);
             // 
-            // btnUnMount
+            // notes
             // 
-            this.btnUnMount.Location = new System.Drawing.Point(140, 211);
-            this.btnUnMount.Name = "btnUnMount";
-            this.btnUnMount.Size = new System.Drawing.Size(216, 49);
-            this.btnUnMount.TabIndex = 3;
-            this.btnUnMount.Text = "卸载目录";
-            this.btnUnMount.UseVisualStyleBackColor = true;
-            this.btnUnMount.Click += new System.EventHandler(this.btnUnMount_Click);
+            this.notes.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.notes.Font = new System.Drawing.Font("宋体", 10.5F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.notes.Location = new System.Drawing.Point(307, 3);
+            this.notes.Multiline = true;
+            this.notes.Name = "notes";
+            this.notes.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.notes.Size = new System.Drawing.Size(843, 620);
+            this.notes.TabIndex = 3;
+            this.notes.Text = resources.GetString("notes.Text");
+            // 
+            // tableLayoutPanel1
+            // 
+            this.tableLayoutPanel1.ColumnCount = 2;
+            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 26.43902F));
+            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 73.56097F));
+            this.tableLayoutPanel1.Controls.Add(this.notes, 1, 0);
+            this.tableLayoutPanel1.Controls.Add(this.panel1, 0, 0);
+            this.tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
+            this.tableLayoutPanel1.Name = "tableLayoutPanel1";
+            this.tableLayoutPanel1.RowCount = 1;
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(1153, 626);
+            this.tableLayoutPanel1.TabIndex = 4;
+            // 
+            // panel1
+            // 
+            this.panel1.Controls.Add(this.btnLogin);
+            this.panel1.Controls.Add(this.btnClearCache);
+            this.panel1.Controls.Add(this.btnMount);
+            this.panel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panel1.Location = new System.Drawing.Point(3, 3);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(298, 620);
+            this.panel1.TabIndex = 4;
             // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Controls.Add(this.btnUnMount);
-            this.Controls.Add(this.btnClearCache);
-            this.Controls.Add(this.btnMount);
-            this.Controls.Add(this.btnLogin);
+            this.ClientSize = new System.Drawing.Size(1153, 626);
+            this.Controls.Add(this.tableLayoutPanel1);
             this.Name = "Main";
-            this.Text = "Form1";
+            this.Text = "PW挂载器";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Main_FormClosing);
+            this.tableLayoutPanel1.ResumeLayout(false);
+            this.tableLayoutPanel1.PerformLayout();
+            this.panel1.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -102,6 +135,8 @@ namespace PWProjectFS.UI
         private System.Windows.Forms.Button btnMount;
         private System.Windows.Forms.Button btnClearCache;
         private System.ComponentModel.BackgroundWorker backgroundMountWorker;
-        private System.Windows.Forms.Button btnUnMount;
+        private System.Windows.Forms.TextBox notes;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
+        private System.Windows.Forms.Panel panel1;
     }
 }
