@@ -12,6 +12,7 @@ namespace PWProjectFS
         [STAThread]
         static void Main()
         {
+            ErrorHandler.bindErrorHandler();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Main());
