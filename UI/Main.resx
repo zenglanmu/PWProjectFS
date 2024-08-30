@@ -122,7 +122,9 @@
   </metadata>
   <data name="notes.Text" xml:space="preserve">
     <value>说明：
-基于虚拟文件系统驱动实现，将pw目录映射到本地磁盘目录实现。默认的挂载位置是N盘
+使用本软件需安装bentley公司的ProjectWise软件，该软件版权所属为bentley公司。
+基于虚拟文件系统驱动实现。采用的驱动来着dokany项目，项目主页为：https://github.com/dokan-dev/dokany
+本软件可将pw目录映射到本地磁盘目录实现。默认的挂载位置是N盘。
 使用前请仔细阅读注意事项。
 由于访问机制原因，本程序不可避免存在一些问题。由本程序导致的数据丢失和损坏等问题请自行解决。
 

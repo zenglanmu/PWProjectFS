@@ -37,6 +37,7 @@ namespace PWProjectFS.UI
             this.notes = new System.Windows.Forms.TextBox();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.btnAbout = new System.Windows.Forms.Button();
             this.tableLayoutPanel1.SuspendLayout();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -104,6 +105,7 @@ namespace PWProjectFS.UI
             // 
             // panel1
             // 
+            this.panel1.Controls.Add(this.btnAbout);
             this.panel1.Controls.Add(this.btnLogin);
             this.panel1.Controls.Add(this.btnClearCache);
             this.panel1.Controls.Add(this.btnMount);
@@ -112,6 +114,16 @@ namespace PWProjectFS.UI
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(298, 620);
             this.panel1.TabIndex = 4;
+            // 
+            // btnAbout
+            // 
+            this.btnAbout.Location = new System.Drawing.Point(20, 549);
+            this.btnAbout.Name = "btnAbout";
+            this.btnAbout.Size = new System.Drawing.Size(216, 49);
+            this.btnAbout.TabIndex = 3;
+            this.btnAbout.Text = "关于";
+            this.btnAbout.UseVisualStyleBackColor = true;
+            this.btnAbout.Click += new System.EventHandler(this.btnAbout_Click);
             // 
             // Main
             // 
@@ -138,5 +150,6 @@ namespace PWProjectFS.UI
         private System.Windows.Forms.TextBox notes;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Button btnAbout;
     }
 }
