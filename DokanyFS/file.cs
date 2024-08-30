@@ -1,13 +1,12 @@
-﻿using System;
+﻿using DokanNet;
+using PWProjectFS.PWApiWrapper;
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Globalization;
+using System.IO;
 using System.Security.AccessControl;
-using DokanNet;
-using Microsoft.Win32;
 using static DokanNet.FormatProviders;
 using FileAccess = DokanNet.FileAccess;
-using PWProjectFS.PWApiWrapper;
 
 namespace PWProjectFS.DokanyFS
 {
@@ -29,19 +28,20 @@ namespace PWProjectFS.DokanyFS
                 if (info.IsDirectory)
                 {
                     var project = this.provider.ProjectHelper.GetProjectByNamePath(filePath);
-                    if (project!=null)
+                    if (project != null)
                     {
                         this.provider.ProjectHelper.Delete(project);
                     }
-                    
+
                 }
                 else
                 {
                     var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
-                    if (pw_doc!= null){
+                    if (pw_doc != null)
+                    {
                         this.provider.PWDocProcessTracker.Delete(pw_doc.id);
                         this.provider.DocumentHelper.Delete(pw_doc.id);
-                    }                    
+                    }
                 }
             }
             Trace(nameof(Cleanup), fileName, info, DokanResult.Success);
@@ -70,22 +70,22 @@ namespace PWProjectFS.DokanyFS
             // only need to activate in CreateFile
             this.provider.Activate();
             var result = DokanResult.Success;
-            var filePath = GetPath(fileName);            
+            var filePath = GetPath(fileName);
 
             if (info.IsDirectory)
             {
                 try
                 {
                     // 不获取对象改获取id是因为挂载顶层目录情况时没有对象，proejctId为0
-                    var projectId = this.provider.ProjectHelper.GetProjectIdByNamePath(filePath);                    
+                    var projectId = this.provider.ProjectHelper.GetProjectIdByNamePath(filePath);
                     var pw_doc = this.provider.DocumentHelper.GetDocumentByNamePath(filePath);
-                    var pathExists = projectId >=0 || pw_doc != null;
+                    var pathExists = projectId >= 0 || pw_doc != null;
                     switch (mode)
                     {
-                        case FileMode.Open:                            
+                        case FileMode.Open:
                             if (!pathExists)
                             {
-                                if (projectId <0)
+                                if (projectId < 0)
                                 {
                                     return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
                                         attributes, DokanResult.NotADirectory);
@@ -98,7 +98,7 @@ namespace PWProjectFS.DokanyFS
                             break;
 
                         case FileMode.CreateNew:
-                            if (projectId >=0)
+                            if (projectId >= 0)
                                 return Trace(nameof(CreateFile), fileName, info, access, share, mode, options,
                                     attributes, DokanResult.FileExists);
 
@@ -184,7 +184,7 @@ namespace PWProjectFS.DokanyFS
                                 DokanResult.FileNotFound);
                         break;
                 }
-      
+
                 try
                 {
                     bool fileCreated = mode == FileMode.CreateNew || mode == FileMode.Create || (!pathExists && mode == FileMode.OpenOrCreate);
@@ -254,7 +254,7 @@ namespace PWProjectFS.DokanyFS
         public NtStatus FlushFileBuffers(
             string fileName,
             IDokanFileInfo info)
-        {            
+        {
             try
             {
                 ((PWFileContext)(info.Context)).Flush();
@@ -302,10 +302,10 @@ namespace PWProjectFS.DokanyFS
                     fileinfo = pw_proj.toFileInformation();
                     return Trace(nameof(GetFileInformation), fileName, info, DokanResult.Success);
                 }
-                
+
             }
 
-        }        
+        }
 
         public NtStatus MoveFile(
             string oldName,
@@ -404,11 +404,11 @@ namespace PWProjectFS.DokanyFS
                     }
                 }
             }
-            catch(IOException e)
+            catch (IOException e)
             {
                 bytesRead = 0;
-                if (e.Message== "PW文件锁定")
-                {                    
+                if (e.Message == "PW文件锁定")
+                {
                     return Trace(nameof(ReadFile), fileName, info, DokanResult.SharingViolation, "0",
                     offset.ToString(CultureInfo.InvariantCulture));
                 }
@@ -441,7 +441,7 @@ namespace PWProjectFS.DokanyFS
             {
                 return Trace(nameof(SetEndOfFile), fileName, info, DokanResult.DiskFull,
                     length.ToString(CultureInfo.InvariantCulture));
-            }            
+            }
         }
 
         public NtStatus SetAllocationSize(string fileName, long length, IDokanFileInfo info)
@@ -554,7 +554,7 @@ namespace PWProjectFS.DokanyFS
                 offset.ToString(CultureInfo.InvariantCulture));
         }
 
-        
+
 
         public NtStatus GetFileSecurity(string fileName, out FileSystemSecurity security, AccessControlSections sections,
             IDokanFileInfo info)
@@ -569,7 +569,7 @@ namespace PWProjectFS.DokanyFS
                 //var sec = new System.Security.AccessControl.FileSecurity();
                 return DokanResult.NotImplemented;
             }
-            
+
         }
 
         public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections,
@@ -619,12 +619,12 @@ namespace PWProjectFS.DokanyFS
         {
             files = new List<FileInformation>();
             // 一些特殊情况的处理
-            if(fileName=="\\")
+            if (fileName == "\\")
             {
-                if(searchPattern == "__drive_fs_keepalive" || searchPattern== "uwstconfig" || searchPattern== "drive_fs_notification")
+                if (searchPattern == "__drive_fs_keepalive" || searchPattern == "uwstconfig" || searchPattern == "drive_fs_notification")
                 {
                     return DokanResult.Success;
-                }                
+                }
             }
             if (searchPattern == "*")
             {
@@ -632,20 +632,20 @@ namespace PWProjectFS.DokanyFS
                 var filePath = this.GetPath(fileName);
                 var projectId = this.provider.ProjectHelper.GetProjectIdByNamePath(filePath);
                 var projects = this.provider.ProjectHelper.ReadByParent(projectId);
-                foreach(var proj in projects)
+                foreach (var proj in projects)
                 {
                     var file = proj.toFileInformation();
                     files.Add(file);
                 }
                 var docs = this.provider.DocumentHelper.ReadByParent(projectId);
-                foreach(var doc in docs)
+                foreach (var doc in docs)
                 {
                     // 排除掉这种特殊类型不含文件的
-                    if(doc.documentType!= dmscli.DocumentType.Abstract && doc.documentType != dmscli.DocumentType.Set)
+                    if (doc.documentType != dmscli.DocumentType.Abstract && doc.documentType != dmscli.DocumentType.Set)
                     {
                         var file = doc.toFileInformation();
                         files.Add(file);
-                    }                    
+                    }
                 }
                 return DokanResult.Success;
             }
@@ -656,11 +656,11 @@ namespace PWProjectFS.DokanyFS
                 // TODO, 其他情况下的查询
                 // 比如会filename和searchPattern拼接起来是一个,一般是目录的情况为多
                 var fileName1 = fileName.TrimEnd('\\');
-                var fPath = this.GetPath(fileName1 + "\\"+ searchPattern);
+                var fPath = this.GetPath(fileName1 + "\\" + searchPattern);
                 var pw_proj = this.provider.ProjectHelper.GetProjectByNamePath(fPath);
                 if (pw_proj != null)
                 {
-                    files.Add(pw_proj.toFileInformation());                    
+                    files.Add(pw_proj.toFileInformation());
                 }
                 else
                 {
@@ -671,7 +671,7 @@ namespace PWProjectFS.DokanyFS
                     }
                 }
                 return DokanResult.Success;
-            }            
+            }
         }
     }
 }

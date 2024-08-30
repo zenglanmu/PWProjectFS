@@ -14,11 +14,11 @@ namespace PWProjectFS.PWProvider
     {
         private int m_expireSeconds { get; set; }
         /* 全局性的缓存过期时间 */
-        private Dictionary<string, object> m_cacheItems {get;set;}
+        private Dictionary<string, object> m_cacheItems { get; set; }
         /* 保存实际缓存数据 */
-        private Dictionary<string, DateTime> m_cacheTimes { get; set; }       
+        private Dictionary<string, DateTime> m_cacheTimes { get; set; }
         /* 存储缓存的时间 */
-        private Dictionary<string, int> m_cache_expireSeconds{ get; set; }
+        private Dictionary<string, int> m_cache_expireSeconds { get; set; }
         /* 可单独给某缓存key设置过期时间 */
 
         private uint recycle_item_count { get; set; }
@@ -73,7 +73,7 @@ namespace PWProjectFS.PWProvider
             }
             else
             {
-                value=  this.m_cacheItems[cache_key];
+                value = this.m_cacheItems[cache_key];
                 return true;
             }
         }
@@ -135,7 +135,7 @@ namespace PWProjectFS.PWProvider
         public void DeleteByValue(object value, string cache_key_pattern)
         {
             var matched = this.GetByKeyPattern(cache_key_pattern);
-            foreach(var kv in matched)
+            foreach (var kv in matched)
             {
                 if (kv.Value == value)
                 {
@@ -147,15 +147,15 @@ namespace PWProjectFS.PWProvider
         public Dictionary<string, object> GetByKeyPattern(string cache_key_pattern)
         {
             var match_keys = new List<string>();
-            foreach(var key in this.m_cacheItems.Keys)
+            foreach (var key in this.m_cacheItems.Keys)
             {
-                if(new WildcardPattern(cache_key_pattern).IsMatch(key))
+                if (new WildcardPattern(cache_key_pattern).IsMatch(key))
                 {
                     match_keys.Add(key);
                 }
             }
             var matched = new Dictionary<string, object>();
-            foreach(var cache_key in match_keys)
+            foreach (var cache_key in match_keys)
             {
                 var cached = this.Get(cache_key, out object value);
                 if (cached)

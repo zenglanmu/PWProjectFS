@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Security.AccessControl;
-using DokanNet;
-using Microsoft.Win32;
-using FileAccess = DokanNet.FileAccess;
+﻿using DokanNet;
 
 namespace PWProjectFS.DokanyFS
 {
@@ -43,11 +37,11 @@ namespace PWProjectFS.DokanyFS
             fileSystemName = string.Empty;
             maximumComponentLength = 256;
             features = FileSystemFeatures.CasePreservedNames |
-                       FileSystemFeatures.PersistentAcls |FileSystemFeatures.UnicodeOnDisk;
+                       FileSystemFeatures.PersistentAcls | FileSystemFeatures.UnicodeOnDisk;
             return Trace(nameof(GetVolumeInformation), null, info, DokanResult.Success, "out " + volumeLabel,
                 "out " + features.ToString(), "out " + fileSystemName);
-        }       
-       
+        }
+
 
         public NtStatus DeleteDirectory(string fileName, IDokanFileInfo info)
         {
@@ -60,15 +54,15 @@ namespace PWProjectFS.DokanyFS
             var projects = this.provider.ProjectHelper.ReadByParent(projectId);
             var docs = this.provider.DocumentHelper.ReadByParent(projectId);
             var notEmpty = false;
-            if(projects.Count>0 || docs.Count > 0)
+            if (projects.Count > 0 || docs.Count > 0)
             {
                 notEmpty = true;
             }
             // if dir is not empty it can't be deleted
             // just check here, if we could delete the directory - the true deletion is in Cleanup            
             return Trace(nameof(DeleteDirectory), fileName, info,
-                notEmpty ? DokanResult.DirectoryNotEmpty: DokanResult.Success);
+                notEmpty ? DokanResult.DirectoryNotEmpty : DokanResult.Success);
         }
-        
+
     }
 }

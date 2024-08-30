@@ -10,7 +10,7 @@ using FileAccess = DokanNet.FileAccess;
 namespace PWProjectFS.DokanyFS
 {
     //internal class PWFSOperations
-    internal partial class PWFSOperations: IDokanOperations
+    internal partial class PWFSOperations : IDokanOperations
     {
         private int base_pw_projectno;
         private PWDataSourceProvider provider;
@@ -72,8 +72,8 @@ namespace PWProjectFS.DokanyFS
             //Didn't get mount as network to work
             bool useNetWork = false;
             using (var dokanLogger = new ConsoleLogger("[ProjectWise] "))
-            using(var dokan = new Dokan(dokanLogger))
-            {  
+            using (var dokan = new Dokan(dokanLogger))
+            {
                 var fs = new PWFSOperations(dokanLogger, projectno, provider);
                 var dokanBuilder = new DokanInstanceBuilder(dokan)
                         .ConfigureLogger(() => dokanLogger)
@@ -89,7 +89,7 @@ namespace PWProjectFS.DokanyFS
                             {
                                 options.Options = options.Options | DokanOptions.RemovableDrive;
                             }
-                            
+
                             //options.Options = DokanOptions.DebugMode | DokanOptions.EnableNotificationAPI;
 #if DEBUG
                             options.Options = options.Options | DokanOptions.DebugMode;
@@ -101,8 +101,9 @@ namespace PWProjectFS.DokanyFS
                 using (DokanInstance dokanInstance = dokanBuilder.Build(fs))
                 {
                     var mountTask = dokanInstance.WaitForFileSystemClosedAsync(uint.MaxValue)
-                        .ContinueWith(t=> { 
-                            provider.CancelProcessScan(); 
+                        .ContinueWith(t =>
+                        {
+                            provider.CancelProcessScan();
                         });
                     var scanProcessTask = provider.PWDocProcessTracker.ContinousScan();
                     // 两个任务同时后台进行，等待两个任务都完成。理论上不mount时，scanProcessTask也会自动退出
@@ -141,7 +142,7 @@ namespace PWProjectFS.DokanyFS
             else
             {
                 return _base_pw_path + "\\" + filename;
-            }            
+            }
         }
     }
 }

@@ -1,12 +1,10 @@
-﻿using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DokanNet;
+﻿using DokanNet;
 using PWProjectFS.PWApiWrapper;
 using PWProjectFS.PWApiWrapper.CommonDlg;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace PWProjectFS.PWProvider
 {
@@ -172,7 +170,7 @@ namespace PWProjectFS.PWProvider
                     projs.Add(proj);
                 }
                 return proj;
-                
+
             }
         }
 
@@ -187,7 +185,7 @@ namespace PWProjectFS.PWProvider
             {
                 projnum = dmscli.aaApi_SelectTopLevelProjects();
             }
-            
+
             if (projnum == 0)
             {
                 return new List<PWProject>(); // Failed to select properties of all documents. There are no documents in specified project.
@@ -235,7 +233,7 @@ namespace PWProjectFS.PWProvider
         /// <returns></returns>
         private int _Create(int parentProjectId, string name, string description)
         {
-            
+
             this.SelectProject(parentProjectId);
             var lStorageId = dmscli.aaApi_GetProjectNumericProperty(dmscli.ProjectProperty.StorageID, 0);
             var projItem = new dmscli.AADMSPROJITEM();
@@ -255,16 +253,16 @@ namespace PWProjectFS.PWProvider
             projItem.ulFlags = (uint)(
                 dmscli.AADMSProjFlags.ParentId |
                 dmscli.AADMSProjFlags.Name |
-                dmscli.AADMSProjFlags.Desc |                
+                dmscli.AADMSProjFlags.Desc |
                 dmscli.AADMSProjFlags.ManagerId |
                 dmscli.AADMSProjFlags.Mgrtype |
                 dmscli.AADMSProjFlags.TypeId |
-                dmscli.AADMSProjFlags.StorageId                
+                dmscli.AADMSProjFlags.StorageId
                 );
             IntPtr pd = Util.StructureToPtr(projItem);
 
             var ret = dmscli.aaApi_CreateProject2(pd, 0);
-            
+
             if (!ret)
             {
                 Util.FreeHGlobal(ref pd);
@@ -304,7 +302,7 @@ namespace PWProjectFS.PWProvider
 
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
-            {                
+            {
                 // 拼接上pw的父路径，获取完整的pw父路径
                 var basename = projFullPath.Substring(projFullPath.LastIndexOf("\\") + 1);
                 var proj = this.Create(parentProjectId, basename, basename);
@@ -342,7 +340,7 @@ namespace PWProjectFS.PWProvider
                     // nothing
                 }
             }
-        }       
+        }
 
         /// <summary>
         /// 根据label名称取值
@@ -354,7 +352,7 @@ namespace PWProjectFS.PWProvider
         {
             // aaApi_SelectProjectsByStruct 这个方法一直报缓冲区大小不够的错误，所以只好都出子目录再匹配
             var projects = this.ReadByParent(parentProjectId);
-            foreach(var proj in projects)
+            foreach (var proj in projects)
             {
                 if (proj.label == label)
                 {
@@ -391,15 +389,15 @@ namespace PWProjectFS.PWProvider
                 // 递归找
                 var subParts = lpctstrPath.Split('\\');
                 var subPathNames = new List<string>(); // 逐级拼接出来
-                for(int i=0; i < subParts.Length; i++)
+                for (int i = 0; i < subParts.Length; i++)
                 {
                     subPathNames.Add(string.Join("\\", subParts.Take(i + 1)));
                 }
                 var lastProjectId = 0;
-                foreach(var subPathName in subPathNames)
+                foreach (var subPathName in subPathNames)
                 {
                     var label = subPathName.Substring(subPathName.LastIndexOf("\\") + 1);
-                    
+
                     var proj = this.GetProjectByNameAndProjectId(label, lastProjectId);
                     if (proj != null)
                     {
@@ -415,17 +413,17 @@ namespace PWProjectFS.PWProvider
                         return -1;
                     }
                 }
-                return lastProjectId;                
-            }            
-         }
+                return lastProjectId;
+            }
+        }
 
-        
+
 
         public PWProject GetProjectByNamePath(string lpctstrPath)
         {
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
-            {                
+            {
                 var projectno = this.GetProjectIdByNamePath(lpctstrPath);
                 if (projectno <= 0)
                 {
@@ -464,12 +462,12 @@ namespace PWProjectFS.PWProvider
                 {
                     break;
                 }
-                proj = this.Read(proj.parentid);                
+                proj = this.Read(proj.parentid);
             }
             projs.Reverse();
             var names = projs.Select(x => x.label);
             var fullPath = string.Join("\\", names);
-            return fullPath;            
+            return fullPath;
         }
 
 
@@ -479,7 +477,7 @@ namespace PWProjectFS.PWProvider
         /// <param name="proj"></param>
         /// <returns></returns>
         private void _Update(int projectId, string new_name)
-        {            
+        {
             var projItem = new dmscli.AADMSPROJITEM();
             projItem.lptstrName = new_name;
             projItem.lptstrDesc = new_name;
@@ -524,7 +522,7 @@ namespace PWProjectFS.PWProvider
         {
             var oldprojectid = this.GetProjectIdByNamePath(oldpath);
             lock (this._lock)
-            {                
+            {
                 var proj = this._Read(oldprojectid);
                 var parentPath = newpath.Substring(0, newpath.LastIndexOf("\\"));
                 var new_parentid = this.GetProjectIdByNamePath(parentPath);

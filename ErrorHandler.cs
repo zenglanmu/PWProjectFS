@@ -1,10 +1,6 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using PWProjectFS.Log;
+using System;
 using System.Windows.Forms;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using PWProjectFS.Log;
 
 namespace PWProjectFS
 {

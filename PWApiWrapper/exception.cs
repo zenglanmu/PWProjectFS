@@ -1,23 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PWProjectFS.PWApiWrapper
 {
     public class PWException : Exception
     {
         public PWException(string message) : base(message) { }
-        public PWException(int errorId, string errorDetail):
+        public PWException(int errorId, string errorDetail) :
             this(string.Format("pw错误信息:{0},错误码:{1}", errorDetail, errorId))
         {
             this.PWErrorDetail = errorDetail;
             this.PWErrorId = errorId;
-            
+
         }
 
-        public string PWErrorDetail {  get; private set; }
+        public string PWErrorDetail { get; private set; }
         public int PWErrorId { get; private set; }
 
         public override string Message

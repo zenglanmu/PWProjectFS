@@ -1,9 +1,9 @@
-﻿using System;
-using System.IO;
-using System.Diagnostics;
-using DokanNet;
-using PWProjectFS.PWProvider;
+﻿using DokanNet;
 using PWProjectFS.PWApiWrapper;
+using PWProjectFS.PWProvider;
+using System;
+using System.Diagnostics;
+using System.IO;
 
 namespace PWProjectFS.DokanyFS
 {
@@ -19,13 +19,13 @@ namespace PWProjectFS.DokanyFS
         /// 是不是每次执行写入相关操作时，对本地副本io完后，更新服务器副本
         /// </summary>
         private bool updateServerCopyOnWrite = true;
-        
+
         private PWDataSourceProvider provider { get; set; }
 
         /// <summary>
         /// 文件在pw上的完整路径
         /// </summary>
-        private string docFullPath { get;  set; }
+        private string docFullPath { get; set; }
 
         /// <summary>
         /// 获取本地副本时，是用检出的方式还是复制出的方式
@@ -186,7 +186,7 @@ namespace PWProjectFS.DokanyFS
                 {
                     stream.Lock(offset, length);
                 }
-            }            
+            }
         }
 
         /// <summary>
@@ -204,7 +204,7 @@ namespace PWProjectFS.DokanyFS
                     stream.Unlock(offset, length);
                 }
             }
-        }        
+        }
 
         protected Int32 GetNumOfBytesToCopy(Int32 bufferLength, long offset, FileStream stream)
         {
@@ -251,7 +251,7 @@ namespace PWProjectFS.DokanyFS
                     this.isDocCheckOut = false;
                 }
             }
-            
+
             if (this.isDocCheckOut && !pw_doc.locked)
             {
                 // 可能前面操作中文件释放了，例如进行了移动操作，但又重新写入，则要重新检出
@@ -260,7 +260,7 @@ namespace PWProjectFS.DokanyFS
 
 
             if (this._localWorkDirPath == null)
-            {                
+            {
                 // TODO，不能checkout时但又调用了写打开方式的处理，抛UnauthorizedAccessException好像不对
                 if (this.isDocCheckOut && pw_doc.locked && !pw_doc.locked_by_me)
                 {
@@ -276,9 +276,9 @@ namespace PWProjectFS.DokanyFS
                     {
                         this.provider.PWDocProcessTracker.Update(pw_doc.id, this.info.ProcessId);
                     }
-                    
+
                 }
-                catch(PWException e)
+                catch (PWException e)
                 {
                     if (e.PWErrorId == 58085)
                     {
@@ -289,9 +289,9 @@ namespace PWProjectFS.DokanyFS
                     else
                     {
                         throw e;
-                    }                    
-                }              
-                
+                    }
+                }
+
             }
             return this._localWorkDirPath;
         }
@@ -308,8 +308,8 @@ namespace PWProjectFS.DokanyFS
                         // 更新文件大小的缓存
                         pw_doc.filesize = new System.IO.FileInfo(this._localWorkDirPath).Length;
                     }
-                    this.provider.DocumentHelper.UpdateCheckOutDocument(pw_doc);                    
-                }                
+                    this.provider.DocumentHelper.UpdateCheckOutDocument(pw_doc);
+                }
             }
         }
 
@@ -348,7 +348,7 @@ namespace PWProjectFS.DokanyFS
                 this.OpenByExplorer = false;
                 return false;
             }
-            
+
         }
         // Implement IDisposable
         public void Dispose()
@@ -371,7 +371,7 @@ namespace PWProjectFS.DokanyFS
                         {
                             this.provider.DocumentHelper.Free(pw_doc.id);
                         }
-                        
+
                     }
                 }
                 _disposed = true;

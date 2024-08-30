@@ -1,11 +1,10 @@
-﻿using System;
+﻿using PWProjectFS.PWApiWrapper;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
-using PWProjectFS.PWApiWrapper;
+using System.Threading.Tasks;
 
 namespace PWProjectFS.PWProvider
 {
@@ -61,7 +60,7 @@ namespace PWProjectFS.PWProvider
             lock (this._lock)
             {
                 var keys = this.docToProcessId.Keys.ToList();
-                foreach(var key in keys)
+                foreach (var key in keys)
                 {
                     var values = this.docToProcessId[key];
                     this.docToProcessId[key] = new List<int>();
@@ -103,12 +102,13 @@ namespace PWProjectFS.PWProvider
                     {
                         this.provider.Activate();
                         this.provider.DocumentHelper.Free(documentId);
-                    }catch(PWException e)
+                    }
+                    catch (PWException e)
                     {
                         Console.WriteLine($"free doc failed for id {documentId}");
 
                     }
-                    
+
                 }
             }
         }

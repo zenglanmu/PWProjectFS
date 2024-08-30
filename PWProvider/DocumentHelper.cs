@@ -1,11 +1,11 @@
-﻿using System;
-using System.IO;
+﻿using DokanNet;
+using PWProjectFS.PWApiWrapper;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
-using DokanNet;
-using PWProjectFS.PWApiWrapper;
-using DocumentType= PWProjectFS.PWApiWrapper.dmscli.DocumentType;
+using DocumentType = PWProjectFS.PWApiWrapper.dmscli.DocumentType;
 
 namespace PWProjectFS.PWProvider
 {
@@ -117,7 +117,7 @@ namespace PWProjectFS.PWProvider
         /// <returns></returns>
         private PWDocument _Read(string documentId)
         {
-            var documentGuid = SelectDocument(documentId);           
+            var documentGuid = SelectDocument(documentId);
             var doc = this.PopulateDocumentFromBuffer(0);
             return doc;
         }
@@ -169,12 +169,12 @@ namespace PWProjectFS.PWProvider
             {
                 //pass
             }
-            
-            for(int i = 0; i < docnums; i++)
+
+            for (int i = 0; i < docnums; i++)
             {
                 var doc = this.PopulateDocumentFromBuffer(i);
                 docs.Add(doc);
-            }            
+            }
             return docs;
         }
 
@@ -256,7 +256,7 @@ namespace PWProjectFS.PWProvider
                 {
                     throw new IOException("PW文件处于最终状态");
                 }
-                if(doc.locked)
+                if (doc.locked)
                 {
                     if (doc.locked_by_me)
                     {
@@ -266,7 +266,7 @@ namespace PWProjectFS.PWProvider
                     {
                         throw new IOException("PW文件锁定");
                     }
-                    
+
                 }
                 this._Delete(documentId);
                 // update cache
@@ -317,24 +317,25 @@ namespace PWProjectFS.PWProvider
                 false, // bLeaveOut。  If this parameter is FALSE then the document will be checked in. If this parameter is TRUE then the document will be copied to the working directory and marked as checked out by the current user
                 dmscli.DocumentCreationFlag.Default, // ulFlags， 正常创建情况
                 lptstrWorkingFile,// copy out后的在工作目录的路径
-                workingFileBufferSize, 
+                workingFileBufferSize,
                 ref plAttributeId
              );
-            if (!ret || plDocumentId<=0)
+            if (!ret || plDocumentId <= 0)
             {
                 throw PWException.GetPWLastException();
             }
             var selRet = dmscli.aaApi_SelectDocument(projectId, plDocumentId);
-            if (selRet==-1)
+            if (selRet == -1)
             {
                 throw PWException.GetPWLastException();
-            }else if (selRet == 0)
+            }
+            else if (selRet == 0)
             {
                 throw new PWException($"文件未找到,projectId:{projectId},plDocumentId:{plDocumentId}");
             }
             var pw_doc = this.PopulateDocumentFromBuffer(0);
             return pw_doc;
-        }        
+        }
 
 
         /// <summary>
@@ -371,7 +372,7 @@ namespace PWProjectFS.PWProvider
                 }
                 else
                 {
-                    using(var tempdir=new PWTempDir())
+                    using (var tempdir = new PWTempDir())
                     {
                         // create empty file then upload to pw
                         var filelocalpath = Path.Combine(tempdir.GetTempDir(), filename);
@@ -382,7 +383,7 @@ namespace PWProjectFS.PWProvider
                         var exist = docs.Where(x => x.id == doc.id).FirstOrDefault();
                         if (exist != null)
                         {
-                            exist=doc; // 不应该走到这
+                            exist = doc; // 不应该走到这
                         }
                         else
                         {
@@ -390,9 +391,9 @@ namespace PWProjectFS.PWProvider
                         }
                         return doc;
                     }
-                    
+
                 }
-                
+
             }
         }
 
@@ -459,7 +460,7 @@ namespace PWProjectFS.PWProvider
                 throw PWException.GetPWLastException();
             }
             if (outToMe)
-            {                         
+            {
                 if (!dmscli.aaApi_GUIDGetDocumentCheckedOutFileName(ref pDocGuid, localPath, localPath.Capacity))
                 {
                     throw new PWException("未在工作目录找到该文档");
@@ -489,7 +490,7 @@ namespace PWProjectFS.PWProvider
                         ref pDocGuid,
                         null,//对应docWorkdir，如果传null，表示使用现有工作目录
                         localPath, // 检出的本地路径
-                        localPath.Capacity);                   
+                        localPath.Capacity);
                 }
                 if (!ret)
                 {
@@ -567,8 +568,8 @@ namespace PWProjectFS.PWProvider
         /// 移动文件，同时支持更新文件名操作
         /// new_name为null则是只移动
         /// </summary>
-        private void _MoveDocument(PWDocument doc, int targetProjectId, string new_name=null)
-        { 
+        private void _MoveDocument(PWDocument doc, int targetProjectId, string new_name = null)
+        {
             var pTargetDocumentId = 0; //不覆盖原来的文件，因为如果有冲突的话，上层调用方应该先删除
             var ret = dmscli.aaApi_MoveDocument(
                 doc.projectId,
@@ -616,21 +617,22 @@ namespace PWProjectFS.PWProvider
                 return;
             }
 
-            if(pw_doc.locked && pw_doc.locked_by_me)
+            if (pw_doc.locked && pw_doc.locked_by_me)
             {
                 // 占用的文件无法移动
                 this.Free(pw_doc.id);
             }
             lock (this._lock)
-            {             
-                if(oldProjectid == newProjectid){
+            {
+                if (oldProjectid == newProjectid)
+                {
                     if (newFilename != oldFilename)
                     {
                         // 还是在源目录，只是重命名的情况
                         this._Update(pw_doc.id, newFilename);
                     }
                 }
-                
+
                 if (oldProjectid != newProjectid)
                 {
                     // 更改了上级目录
@@ -640,7 +642,7 @@ namespace PWProjectFS.PWProvider
                         // 移动文件夹同时也改名了
                         new_name = newFilename;
                     }
-                    this._MoveDocument(pw_doc,newProjectid, new_name);
+                    this._MoveDocument(pw_doc, newProjectid, new_name);
                 }
 
                 // 清空缓存，防止移动后老的还在

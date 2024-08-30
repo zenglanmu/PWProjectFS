@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿using PWProjectFS.DokanyFS;
 using PWProjectFS.PWProvider;
-using PWProjectFS.DokanyFS;
-using DokanNet.Logging;
+using System;
+using System.ComponentModel;
+using System.Windows.Forms;
 
 namespace PWProjectFS.UI
 {
@@ -28,12 +21,12 @@ namespace PWProjectFS.UI
         {
             this.provider = new PWDataSourceProvider();
             this.provider.Initialize();
-            this.provider.Login();            
+            this.provider.Login();
         }
 
         private void btnMount_Click(object sender, EventArgs e)
         {
-            if(this.provider !=null && this.provider.IsOpen())
+            if (this.provider != null && this.provider.IsOpen())
             {
                 this.PWProjectId = this.provider.ProjectHelper.ShowSelectProjectDlg();
                 if (this.PWProjectId >= 0)
@@ -41,14 +34,14 @@ namespace PWProjectFS.UI
                     this.localMountPath = @"N:\";
                     // 放后台不卡主线程
                     this.backgroundMountWorker.RunWorkerAsync();
-                }                
+                }
             }
-            
+
         }
 
         private void Main_FormClosing(object sender, FormClosingEventArgs e)
         {
-            
+
         }
 
         private void btnClearCache_Click(object sender, EventArgs e)
@@ -60,7 +53,7 @@ namespace PWProjectFS.UI
         }
 
         private void backgroundMountWorker_DoWork(object sender, DoWorkEventArgs e)
-        {            
+        {
             PWFSOperations.Mount(this.PWProjectId, this.localMountPath, this.provider);
         }
 

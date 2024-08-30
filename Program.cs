@@ -1,6 +1,6 @@
-﻿using System;
+﻿using PWProjectFS.UI;
+using System;
 using System.Windows.Forms;
-using PWProjectFS.UI;
 
 namespace PWProjectFS
 {
@@ -16,6 +16,6 @@ namespace PWProjectFS
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Main());
-        }        
+        }
     }
 }

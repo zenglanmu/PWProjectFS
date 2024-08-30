@@ -28,6 +28,7 @@ https://github.com/dokan-dev/dokany/releases/download/v2.2.0.1000/DokanSetup.exe
 - [x] 关闭后释放pw上文件占用，清空本地工作目录的缓存文件
 - [ ] 长时间登陆退出后重新登陆
 - [ ] 手动卸载
+- [ ] 搜索支持
 
  ## know issues:
  1. windows打开大小为0的文件时，没走只读。导致想编辑但没检出锁定
