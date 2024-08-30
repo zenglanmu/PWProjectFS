@@ -322,7 +322,7 @@ namespace PWProjectFS.DokanyFS
             var exist = false;
             if (info.IsDirectory)
             {
-                exist = this.provider.ProjectHelper.IsNamePathExists(oldpath);
+                exist = this.provider.ProjectHelper.IsNamePathExists(newpath);
             }
             else
             {
