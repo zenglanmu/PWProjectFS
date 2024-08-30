@@ -28,6 +28,12 @@ namespace PWProjectFS.DokanyFS
         private string docFullPath { get; set; }
 
         /// <summary>
+        /// 完整路径对应的doc对象
+        /// </summary>
+        private PWDocument doc { get; set; }
+
+
+        /// <summary>
         /// 获取本地副本时，是用检出的方式还是复制出的方式
         /// </summary>
         private bool isDocCheckOut = true;
@@ -115,6 +121,7 @@ namespace PWProjectFS.DokanyFS
                     //var bytesToCopy = buffer.Length;
                     stream.Write(buffer, 0, bytesToCopy);
                 }
+                this.doc.file_update_time = DateTime.Now;
             }
         }
 
@@ -136,6 +143,7 @@ namespace PWProjectFS.DokanyFS
                     //var bytesToCopy = buffer.Length;
                     stream.Write(buffer, 0, bytesToCopy);
                 }
+                this.doc.file_update_time = DateTime.Now;
             }
         }
 
@@ -153,6 +161,7 @@ namespace PWProjectFS.DokanyFS
                 }
                 this.UpdateServerCopy();
             }
+            this.doc.file_update_time = DateTime.Now;
         }
 
         /// <summary>
@@ -170,6 +179,7 @@ namespace PWProjectFS.DokanyFS
                 }
                 this.UpdateServerCopy();
             }
+            this.doc.file_update_time = DateTime.Now;
         }
 
         /// <summary>
@@ -230,8 +240,8 @@ namespace PWProjectFS.DokanyFS
         /// <returns></returns>
         private string GetPWDocLocalWorkPath()
         {
-            var pw_doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
-            if (pw_doc == null)
+            this.doc = provider.DocumentHelper.GetDocumentByNamePath(docFullPath);
+            if (this.doc == null)
             {
                 return null;
             }
@@ -252,7 +262,7 @@ namespace PWProjectFS.DokanyFS
                 }
             }
 
-            if (this.isDocCheckOut && !pw_doc.locked)
+            if (this.isDocCheckOut && !this.doc.locked)
             {
                 // 可能前面操作中文件释放了，例如进行了移动操作，但又重新写入，则要重新检出
                 this._localWorkDirPath = null;
@@ -262,19 +272,19 @@ namespace PWProjectFS.DokanyFS
             if (this._localWorkDirPath == null)
             {
                 // TODO，不能checkout时但又调用了写打开方式的处理，抛UnauthorizedAccessException好像不对
-                if (this.isDocCheckOut && pw_doc.locked && !pw_doc.locked_by_me)
+                if (this.isDocCheckOut && this.doc.locked && !this.doc.locked_by_me)
                 {
                     // 导出或者在别的机器上检出了，但是要读写，则没有权限
                     throw new IOException("PW文件锁定");
                 }
                 try
                 {
-                    this._localWorkDirPath = this.provider.DocumentHelper.OpenDocument(pw_doc, this.isDocCheckOut);
+                    this._localWorkDirPath = this.provider.DocumentHelper.OpenDocument(this.doc, this.isDocCheckOut);
                     // 记录打开文件的进程id，以便进行资源回收
                     // 但是对于文件资源管理器，该对象的生命周期结束就释放文件
                     if (!this.IsOpenByExplorer())
                     {
-                        this.provider.PWDocProcessTracker.Update(pw_doc.id, this.info.ProcessId);
+                        this.provider.PWDocProcessTracker.Update(this.doc.id, this.info.ProcessId);
                     }
 
                 }
