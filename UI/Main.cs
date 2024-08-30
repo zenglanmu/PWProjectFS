@@ -72,7 +72,7 @@ namespace PWProjectFS.UI
         private void btnAbout_Click(object sender, EventArgs e)
         {
             var msg = @"北京城建设计发展集团 版权所有
-本软件由北京城建设计技术研究院数字中心曾澜沐开发。
+项目主页见https://github.com/zenglanmu/PWProjectFS
 如您分发本软件，请保留该信息。";
             MessageBox.Show(msg);
         }
