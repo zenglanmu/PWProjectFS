@@ -69,6 +69,8 @@ namespace PWProjectFS.DokanyFS
         /// <param name="provider"></param>
         public static void Mount(int projectno, string mountPath, PWDataSourceProvider provider)
         {
+            //Didn't get mount as network to work
+            bool useNetWork = false;
             using (var dokanLogger = new ConsoleLogger("[ProjectWise] "))
             using(var dokan = new Dokan(dokanLogger))
             {  
@@ -77,10 +79,22 @@ namespace PWProjectFS.DokanyFS
                         .ConfigureLogger(() => dokanLogger)
                         .ConfigureOptions(options =>
                         {
-                            options.Options = DokanOptions.UserModeLock | DokanOptions.CaseSensitive;
+                            options.Options = DokanOptions.CaseSensitive | DokanOptions.MountManager | DokanOptions.CurrentSession;
+                            if (useNetWork)
+                            {
+                                options.Options = options.Options | DokanOptions.NetworkDrive | DokanOptions.EnableNetworkUnmount;
+                                options.UNCName = @"\\myfs\dokan";
+                            }
+                            else
+                            {
+                                options.Options = options.Options | DokanOptions.RemovableDrive;
+                            }
+                            
                             //options.Options = DokanOptions.DebugMode | DokanOptions.EnableNotificationAPI;
 #if DEBUG
                             options.Options = options.Options | DokanOptions.DebugMode;
+                            // single thread mode, easy for debug, but bad for performance
+                            options.SingleThread = true;
 #endif
                             options.MountPoint = mountPath;
                         });

@@ -115,7 +115,6 @@ namespace PWProjectFS.DokanyFS
                     //var bytesToCopy = buffer.Length;
                     stream.Write(buffer, 0, bytesToCopy);
                 }
-                this.UpdateServerCopy();
             }
         }
 
@@ -137,7 +136,6 @@ namespace PWProjectFS.DokanyFS
                     //var bytesToCopy = buffer.Length;
                     stream.Write(buffer, 0, bytesToCopy);
                 }
-                this.UpdateServerCopy();
             }
         }
 

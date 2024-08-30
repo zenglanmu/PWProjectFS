@@ -560,7 +560,16 @@ namespace PWProjectFS.DokanyFS
             IDokanFileInfo info)
         {
             security = null;
-            return DokanResult.NotImplemented;
+            if (info.IsDirectory)
+            {
+                return DokanResult.NotImplemented;
+            }
+            else
+            {
+                //var sec = new System.Security.AccessControl.FileSecurity();
+                return DokanResult.NotImplemented;
+            }
+            
         }
 
         public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections,
