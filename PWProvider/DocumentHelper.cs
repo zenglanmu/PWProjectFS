@@ -127,7 +127,24 @@ namespace PWProjectFS.PWProvider
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._Read(documentId);
+                var doc = this._Read(documentId);
+                var cache_key = $"ReadDocumentsByParentProjectId:{doc.projectId}";
+                Func<List<PWDocument>> get_value_func = () =>
+                {
+                    return this._ReadByParent(doc.projectId);
+
+                };
+                var docs = this.m_cache.TryGet(cache_key, get_value_func);
+                var exist = docs.Where(x => x.id == doc.id).FirstOrDefault();
+                if (exist != null)
+                {
+                    exist = doc; // update exist
+                }
+                else
+                {
+                    docs.Add(doc);
+                }
+                return doc;
             }
         }
 
@@ -166,7 +183,13 @@ namespace PWProjectFS.PWProvider
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._ReadByParent(parentProjectId);
+                var cache_key = $"ReadDocumentsByParentProjectId:{parentProjectId}";
+                Func<List<PWDocument>> get_value_func = () =>
+                {
+                    return this._ReadByParent(parentProjectId);
+
+                };
+                return this.m_cache.TryGet(cache_key, get_value_func);
             }
         }
 
@@ -189,7 +212,7 @@ namespace PWProjectFS.PWProvider
             var documentGuid = Guid.Parse(documentId);
             // 是否已被检出，已检出的话先保存
             bool outToMe = false;
-            var doc = this._Read(documentId);
+            var doc = this.Read(documentId);
             if (!dmscli.aaApi_IsDocumentCheckedOutToMe(doc.projectId, doc.documentId, out outToMe))
             {
                 throw PWException.GetPWLastException();
@@ -246,8 +269,17 @@ namespace PWProjectFS.PWProvider
                     
                 }
                 this._Delete(documentId);
-                var cache_key = $"GetDocumentByNameAndProjectId:{doc.projectId}-{doc.filename}";
-                this.m_cache.Delete(cache_key);
+                // update cache
+                var docs = this.ReadByParent(doc.projectId);
+                var exist = docs.Where(x => x.id == doc.id).FirstOrDefault();
+                if (exist != null)
+                {
+                    docs.Remove(exist);
+                }
+                else
+                {
+                    // nothing
+                }
             }
         }
 
@@ -345,8 +377,17 @@ namespace PWProjectFS.PWProvider
                         var filelocalpath = Path.Combine(tempdir.GetTempDir(), filename);
                         File.Create(filelocalpath).Dispose();
                         var doc = this._Create(projectId, filelocalpath);
-                        var cache_key = $"GetDocumentByNameAndProjectId:{projectId}-{filename}";
-                        this.m_cache.Delete(cache_key);
+                        // update cache
+                        var docs = this.ReadByParent(doc.projectId);
+                        var exist = docs.Where(x => x.id == doc.id).FirstOrDefault();
+                        if (exist != null)
+                        {
+                            exist=doc; // 不应该走到这
+                        }
+                        else
+                        {
+                            docs.Add(doc);
+                        }
                         return doc;
                     }
                     
@@ -396,16 +437,9 @@ namespace PWProjectFS.PWProvider
             {
                 return null;
             }
-            // use lock to ensure thread safe calling pw apis
-            lock (this._lock)
-            {
-                var cache_key = $"GetDocumentByNameAndProjectId:{projectId}-{filename}";
-                Func<PWDocument> get_value_func = () =>
-                {
-                    return this._GetDocumentByNameAndProjectId(filename, projectId);
-                };
-                return this.m_cache.TryGet(cache_key, get_value_func);
-            }
+            var docs = this.ReadByParent(projectId);
+            var exist = docs.Where(x => x.filename == filename).FirstOrDefault();
+            return exist;
         }
 
 
@@ -610,11 +644,11 @@ namespace PWProjectFS.PWProvider
                 }
 
                 // 清空缓存，防止移动后老的还在
-                var cache_key = $"GetDocumentByNameAndProjectId:{oldProjectid}-{oldFilename}";
+                var cache_key = $"ReadDocumentsByParentProjectId:{oldProjectid}";
                 // TODO,确认移动后原始路径的缓存清空
                 this.m_cache.Delete(cache_key);
                 // 以及清空在目的地的缓存，防止前面判断是否存在时获取过
-                cache_key = $"GetDocumentByNameAndProjectId:{newProjectid}-{newFilename}";
+                cache_key = $"ReadDocumentsByParentProjectId:{newProjectid}";
                 this.m_cache.Delete(cache_key);
             }
         }

@@ -28,10 +28,10 @@ namespace PWProjectFS.DokanyFS
             {
                 if (info.IsDirectory)
                 {
-                    var projectId = this.provider.ProjectHelper.GetProjectIdByNamePath(filePath);
-                    if (projectId > 0)
+                    var project = this.provider.ProjectHelper.GetProjectByNamePath(filePath);
+                    if (project!=null)
                     {
-                        this.provider.ProjectHelper.Delete(projectId);
+                        this.provider.ProjectHelper.Delete(project);
                     }
                     
                 }

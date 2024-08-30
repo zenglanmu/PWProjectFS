@@ -146,10 +146,33 @@ namespace PWProjectFS.PWProvider
 
         public PWProject Read(int projectId)
         {
+            if (projectId == 0)
+            {
+                return null;
+            }
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._Read(projectId);
+                var proj = this._Read(projectId);
+                var cache_key = $"ReadProjectsByParentProjectId:{proj.parentid}";
+                Func<List<PWProject>> get_value_func = () =>
+                {
+                    return this._ReadByParent(proj.parentid);
+
+                };
+                // update cache
+                var projs = this.m_cache.TryGet(cache_key, get_value_func);
+                var exist = projs.Where(x => x.id == proj.id).FirstOrDefault();
+                if (exist != null)
+                {
+                    exist = proj; // update exist
+                }
+                else
+                {
+                    projs.Add(proj);
+                }
+                return proj;
+                
             }
         }
 
@@ -192,7 +215,13 @@ namespace PWProjectFS.PWProvider
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._ReadByParent(parentProjectId);
+                var cache_key = $"ReadProjectsByParentProjectId:{parentProjectId}";
+                Func<List<PWProject>> get_value_func = () =>
+                {
+                    return this._ReadByParent(parentProjectId);
+
+                };
+                return this.m_cache.TryGet(cache_key, get_value_func);
             }
         }
 
@@ -245,16 +274,17 @@ namespace PWProjectFS.PWProvider
             return projItem.lProjectId;
         }
 
-        public int Create(int parentProjectId, string name, string description)
+        public PWProject Create(int parentProjectId, string name, string description)
         {
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                return this._Create(parentProjectId, name, description);
+                var projectno = this._Create(parentProjectId, name, description);
+                return this.Read(projectno);
             }
         }
 
-        public int CreateByFullPath(string projFullPath)
+        public PWProject CreateByFullPath(string projFullPath)
         {
             if (projFullPath.Length == 0)
             {
@@ -268,7 +298,7 @@ namespace PWProjectFS.PWProvider
                 if (parentProjectId == -1)
                 {
                     // 父目录不存在，好让上层调用方知道
-                    return -1;
+                    return null;
                 }
             }
 
@@ -277,13 +307,9 @@ namespace PWProjectFS.PWProvider
             {                
                 // 拼接上pw的父路径，获取完整的pw父路径
                 var basename = projFullPath.Substring(projFullPath.LastIndexOf("\\") + 1);
-                var projectno = this._Create(parentProjectId, basename, basename);
+                var proj = this.Create(parentProjectId, basename, basename);
 
-                var cache_key = $"GetProjectIdByNamePath:{projFullPath}";
-                // 更新缓存，防止创建完后调用获取api不存在
-                // 因为创建前很可能调用了GetProjectIdByNamePath，设置了不存在的缓存
-                this.m_cache.Set(cache_key, projectno);
-                return projectno;
+                return proj;
             }
         }
 
@@ -298,35 +324,25 @@ namespace PWProjectFS.PWProvider
             }
         }
 
-        public void Delete(int projectId)
+        public void Delete(PWProject proj)
         {
             // use lock to ensure thread safe calling pw apis
             lock (this._lock)
             {
-                this._Delete(projectId);
-                var cache_key = $"GetNamePathByProjectId:{projectId}";
-                this.m_cache.Delete(cache_key);
-                var cache_key_pattern = "GetProjectIdByNamePath:*";
-                this.m_cache.DeleteByValue(projectId, cache_key_pattern);
+                this._Delete(proj.id);
+                // update cache
+                var projs = this.ReadByParent(proj.parentid);
+                var exist = projs.Where(x => x.id == proj.id).FirstOrDefault();
+                if (exist != null)
+                {
+                    projs.Remove(exist);
+                }
+                else
+                {
+                    // nothing
+                }
             }
-        }
-
-        /// <summary>
-        /// 从路径转换成Project的id
-        /// </summary>
-        /// <param name="lpctstrPath">应该是不带数据源的，类似 aaa\bbb\ccc反斜杠且开始和结尾没有斜杠</param>
-        /// <returns></returns>
-        private int _GetProjectIdByNamePath(string lpctstrPath)
-        {
-            var projectno = dmscli.aaApi_GetProjectIdByNamePath(lpctstrPath);
-            // 如果lpctstrPath不存在，抛错误码50000
-            if (projectno == -1)
-            {
-                throw PWException.GetPWLastException();
-            }
-            return projectno;
-        }
-
+        }       
 
         /// <summary>
         /// 根据label名称取值
@@ -334,10 +350,10 @@ namespace PWProjectFS.PWProvider
         /// <param name="label"></param>
         /// <param name="parentProjectId"></param>
         /// <returns></returns>
-        private PWProject _GetProjectByNameAndProjectId(string label, int parentProjectId)
+        private PWProject GetProjectByNameAndProjectId(string label, int parentProjectId)
         {
             // aaApi_SelectProjectsByStruct 这个方法一直报缓冲区大小不够的错误，所以只好都出子目录再匹配
-            var projects = this._ReadByParent(parentProjectId);
+            var projects = this.ReadByParent(parentProjectId);
             foreach(var proj in projects)
             {
                 if (proj.label == label)
@@ -369,19 +385,10 @@ namespace PWProjectFS.PWProvider
                 // 特殊处理，上游会调用来判断有没有这个特殊文件，即使有，也应该是文件不是目录
                 return -1;
             }
-            // 先看看能不能直接找到
-            var projectId = this.GetProjectIdByNamePathFailForToolong(lpctstrPath);
-            if (projectId > -1)
-            {
-                return projectId;
-            }
+
             lock (this._lock)
             {
                 // 递归找
-                var full_path_cache_key = $"GetProjectIdByNamePath:{lpctstrPath}";
-                // 因为GetProjectIdByNamePathFailForToolong先获取了，已经会有不成功的缓存
-                this.m_cache.Delete(full_path_cache_key);
-
                 var subParts = lpctstrPath.Split('\\');
                 var subPathNames = new List<string>(); // 逐级拼接出来
                 for(int i=0; i < subParts.Length; i++)
@@ -392,20 +399,16 @@ namespace PWProjectFS.PWProvider
                 foreach(var subPathName in subPathNames)
                 {
                     var label = subPathName.Substring(subPathName.LastIndexOf("\\") + 1);
-                    var cache_key = $"GetProjectIdByNamePath:{subPathName}";
-                    Func<int> get_value_func = () =>
+                    
+                    var proj = this.GetProjectByNameAndProjectId(label, lastProjectId);
+                    if (proj != null)
                     {
-                        var proj = this._GetProjectByNameAndProjectId(label, lastProjectId);
-                        if (proj != null)
-                        {
-                            return proj.id;
-                        }
-                        else
-                        {                            
-                            return -1;
-                        }
-                    };
-                    lastProjectId = this.m_cache.TryGet(cache_key, get_value_func);
+                        lastProjectId = proj.id;
+                    }
+                    else
+                    {
+                        lastProjectId = -1;
+                    }
                     if (lastProjectId == -1)
                     {
                         // 因为是从上到下找的，如果某层级找不到，说明确实没有
@@ -414,45 +417,9 @@ namespace PWProjectFS.PWProvider
                 }
                 return lastProjectId;                
             }            
-            
-        }
+         }
 
-        /// <summary>
-        /// 从路径反推文件夹id，如果不存在，返回-1
-        /// 对于超长的会返回不正确的结果,也会返回-1
-        /// </summary>
-        /// <param name="lpctstrPath"></param>
-        /// <returns></returns>
-        private int GetProjectIdByNamePathFailForToolong(string lpctstrPath)
-        {
-            // use lock to ensure thread safe calling pw apis
-            lock (this._lock)
-            {
-                var cache_key = $"GetProjectIdByNamePath:{lpctstrPath}";
-                Func<int> get_value_func = () =>
-                {
-                    try
-                    {
-                        return this._GetProjectIdByNamePath(lpctstrPath);
-                    }
-                    catch(PWException e) 
-                    { 
-                        if(e.PWErrorId== 50000)
-                        {
-                            // 用-1来表示目录不存在情况
-                            // 和原来aaApi_GetProjectIdByNamePath的返回值有所区分
-                            return -1;
-                        }
-                        else
-                        {
-                            throw e;
-                        }
-                    }
-                    
-                };
-                return this.m_cache.TryGet(cache_key, get_value_func);
-            }
-        }
+        
 
         public PWProject GetProjectByNamePath(string lpctstrPath)
         {
@@ -466,7 +433,7 @@ namespace PWProjectFS.PWProvider
                 }
                 else
                 {
-                    var proj = this._Read(projectno);
+                    var proj = this.Read(projectno);
                     return proj;
                 }
             }
@@ -479,33 +446,30 @@ namespace PWProjectFS.PWProvider
             return projectId != -1;
         }
 
-        private string _GetNamePathByProjectId(int projectId)
-        {
-            bool useDescriptions = dmawin.aaApi_GetDescriptionUsage();
-            int BufferLen = 65535;
-            StringBuilder PWPath = new StringBuilder(BufferLen);
-            char tchSeparator = '\\';
-
-            var ret = dmscli.aaApi_GetProjectNamePath2(projectId, useDescriptions, tchSeparator, PWPath, BufferLen);
-            if (!ret)
-            {
-                throw PWException.GetPWLastException();
-            }
-            return PWPath.ToString();
-        }
-
+        // 根据id反推路径，应该就给获取基路径用
         public string GetNamePathByProjectId(int projectId)
         {
-            // use lock to ensure thread safe calling pw apis
-            lock (this._lock)
+            if (projectId == 0)
             {
-                var cache_key = $"GetNamePathByProjectId:{projectId}";
-                Func<string> get_value_func = () =>
-                {
-                    return this._GetNamePathByProjectId(projectId);
-                };
-                return this.m_cache.TryGet(cache_key, get_value_func);
+                return "";
             }
+            // 逐级往上递归获取
+            var projs = new List<PWProject>();
+            var cur_projectid = projectId;
+            var proj = this.Read(cur_projectid);
+            while (proj != null)
+            {
+                projs.Add(proj);
+                if (proj.parentid == 0)
+                {
+                    break;
+                }
+                proj = this.Read(proj.parentid);                
+            }
+            projs.Reverse();
+            var names = projs.Select(x => x.label);
+            var fullPath = string.Join("\\", names);
+            return fullPath;            
         }
 
 
@@ -563,7 +527,7 @@ namespace PWProjectFS.PWProvider
             {                
                 var proj = this._Read(oldprojectid);
                 var parentPath = newpath.Substring(0, newpath.LastIndexOf("\\"));
-                var new_parentid = this._GetProjectIdByNamePath(parentPath);
+                var new_parentid = this.GetProjectIdByNamePath(parentPath);
                 var new_basename = newpath.Substring(newpath.LastIndexOf("\\") + 1);
                 if (new_basename != proj.name)
                 {
@@ -574,14 +538,13 @@ namespace PWProjectFS.PWProvider
                 {
                     this._SetProjectParent(proj.id, new_parentid);
                 }
-                
+
                 // 清空缓存，防止移动后老的还在
-                var cache_key = $"GetNamePathByProjectId:{oldprojectid}";
+                var cache_key = $"ReadProjectsByParentProjectId:{proj.parentid}";
                 this.m_cache.Delete(cache_key);
-                var cache_key_pattern = "GetProjectIdByNamePath:*";
-                this.m_cache.DeleteByValue(oldpath, cache_key_pattern);
                 // 防止前面获取过newpath，返回空的情况
-                this.m_cache.DeleteByValue(newpath, cache_key_pattern);
+                cache_key = $"ReadProjectsByParentProjectId:{new_parentid}";
+                this.m_cache.Delete(cache_key);
             }
         }
     }
